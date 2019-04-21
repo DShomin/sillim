@@ -35,22 +35,22 @@ class IMetDataset(data.Dataset):
         img = Image.open(file_name)
         label = self.img_label[idx]
         if self.double_label and self.img_label_flag != False:
-            label_cul_tensor = torch.zeros((1, 398))
-            label_tag_tensor = torch.zeros((1, 705))
+            label_cul_tensor = torch.zeros((398))
+            label_tag_tensor = torch.zeros((705))
             for i in label:
                 if int(i) <= 397:
-                    label_cul_tensor[0, int(i)] = 1
+                    label_cul_tensor[int(i)] = 1
                 else:
-                    label_tag_tensor[0, int(i) - 398] = 1
+                    label_tag_tensor[int(i) - 398] = 1
             label_cul_tensor = label_cul_tensor.to(self.device)
             label_tag_tensor = label_tag_tensor.to(self.device)
             if self.transform:
                 img = self.transform(img)
             return [img, label_cul_tensor, label_tag_tensor]
         else:
-            label_tensor = torch.zeros((1,1103))
+            label_tensor = torch.zeros((1103))
             for i in label:
-                label_tensor[0, int(i)] = 1
+                label_tensor[int(i)] = 1
             label_tensor = label_tensor.to(self.device)
             if self.transform:
                 img = self.transform(img)
