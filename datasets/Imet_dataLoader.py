@@ -46,6 +46,7 @@ class IMetDataset(data.Dataset):
             label_tag_tensor = label_tag_tensor.to(self.device)
             if self.transform:
                 img = self.transform(img)
+            img = img.to(self.device)
             return [img, label_cul_tensor, label_tag_tensor]
         else:
             label_tensor = torch.zeros((1103))
@@ -54,4 +55,5 @@ class IMetDataset(data.Dataset):
             label_tensor = label_tensor.to(self.device)
             if self.transform:
                 img = self.transform(img)
+            img = img.to(self.device)
             return [img, label_tensor]
