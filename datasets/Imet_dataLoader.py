@@ -2,6 +2,7 @@ import torch
 from PIL import Image
 import torch.utils.data as data
 from pathlib import Path
+import pandas as pd
 
 # This loader is to be used for serving image tensors (ex img - y1[tag], y2[culture])
 # culture label range ( 0 ~ 397 )
