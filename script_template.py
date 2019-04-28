@@ -6,7 +6,7 @@ from typing import Dict
 
 
 # this is base64 encoded source code
-file_data: Dict = {'imet/transforms.py':''}
+file_data: Dict = {file_data}
 
 for path, encoded in file_data.items():
     print(path)
