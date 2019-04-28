@@ -6,8 +6,7 @@ from typing import Dict
 
 
 # this is base64 encoded source code
-file_data: Dict = {file_data}
-
+file_data: Dict = {'imet/transforms.py':''}
 
 for path, encoded in file_data.items():
     print(path)
@@ -21,4 +20,7 @@ def run(command):
 
 
 run('python setup.py develop --install-dir /kaggle/working')
-run('python imet/main.py')
+run('python -m imet.make_folds')
+run('python -m imet.main train model_1 --n-epochs 25')
+run('python -m imet.main predict_test model_1')
+run('python -m imet.make_submission model_1/test.h5 submission.csv --threshold 0.1')
