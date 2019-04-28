@@ -1,4 +1,5 @@
 import torch
+import torchvision
 import pandas as pd
 import torch.utils.data as data
 
@@ -70,10 +71,8 @@ class IMetDataset(data.Dataset):
             img = img.to(self.device)
             return [img, label_tensor]
 
-import torchvision
-
 class IMetDataLoader:
-    def __init__(self, comfig):
+    def __init__(self, config):
         """
         param config (All String)
         device : 'gpu' or anything(cpu)
@@ -124,3 +123,7 @@ class IMetDataLoader:
 
         data_loader = data.DataLoader(dataset=dataset, batch_size=int(config.batch_size), shuffle=shuffle)
         return data_loader
+
+if __name__ == '__main__':
+    config = dict()
+    imet_data = IMetDataLoader()
