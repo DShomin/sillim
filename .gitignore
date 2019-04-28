@@ -114,3 +114,6 @@ pretrained_weights/*
 # Data
 data/*
 !data/.keep
+
+
+build/script.py
