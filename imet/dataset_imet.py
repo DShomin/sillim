@@ -1,73 +1,129 @@
-from pathlib import Path
-from typing import Callable, List
-
-import cv2
-import pandas as pd
-from PIL import Image
 import torch
-from torch.utils.data import Dataset
+import torchvision
+import pandas as pd
+import torch.utils.data as data
 
-from .transforms import tensor_transform
-from .utils import ON_KAGGLE
-
-
-N_CLASSES = 1103
-DATA_ROOT = Path('../input/imet-2019-fgvc6' if ON_KAGGLE else './data')
+from PIL import Image
+from pathlib import Path
 
 
-class TrainDataset(Dataset):
-    def __init__(self, root: Path, df: pd.DataFrame,
-                 image_transform: Callable, debug: bool = True):
-        super().__init__()
-        self._root = root
-        self._df = df
-        self._image_transform = image_transform
-        self._debug = debug
+# This loader is to be used for serving image tensors (ex img - y1[tag], y2[culture])
+# culture label range ( 0 ~ 397 )
+# tag label range( 398 ~ 1103 )
+class IMetDataset(data.Dataset):
 
+    """
+    csv_path : pathlib.Path 
+    root_dir : pathlib.Path
+    device : string [example gpu -> 'cuda:0' cpu -> 'cpu:0']
+    mode : string [example 'train', 'val', 'test'] val & test not yet
+    double_label : bool [True -> return tag label & culture label, False -> return label]
+    """
+
+    def __init__(self, csv_path : Path, root_dir: Path, device="cuda:0", mode='train' , 
+                    double_label=False, transform=None):
+        df = pd.read_csv(csv_path)
+        self.img_name = df.id.map('{}.png'.format).values
+        if 'attribute_ids' in df.columns:
+            self.img_label = df.attribute_ids.map(lambda x: x.split()).values
+            self.img_label_flag = True
+        else:
+            self.img_label = None
+            self.img_label_flag = False
+        self.root_dir = root_dir
+        self.device = device
+        self.double_label = double_label
+        self.df_len = df.shape[0]
+        if transform != None:
+            self.transform = transform[mode]
+        else:
+            self.transform = transform
+        
     def __len__(self):
-        return len(self._df)
-
-    def __getitem__(self, idx: int):
-        item = self._df.iloc[idx]
-        image = load_transform_image(
-            item, self._root, self._image_transform, debug=self._debug)
-        target = torch.zeros(N_CLASSES)
-        for cls in item.attribute_ids.split():
-            target[int(cls)] = 1
-        return image, target
-
-
-class TTADataset:
-    def __init__(self, root: Path, df: pd.DataFrame,
-                 image_transform: Callable, tta: int):
-        self._root = root
-        self._df = df
-        self._image_transform = image_transform
-        self._tta = tta
-
-    def __len__(self):
-        return len(self._df) * self._tta
-
+        return self.df_len
+    
     def __getitem__(self, idx):
-        item = self._df.iloc[idx % len(self._df)]
-        image = load_transform_image(item, self._root, self._image_transform)
-        return image, item.id
+        img_id = self.img_name[idx]
+        file_name = self.root_dir / img_id
+        img = Image.open(file_name)
+        label = self.img_label[idx]
+        if self.double_label and self.img_label_flag != False:
+            label_cul_tensor = torch.zeros((398))
+            label_tag_tensor = torch.zeros((705))
+            for i in label:
+                if int(i) <= 397:
+                    label_cul_tensor[int(i)] = 1
+                else:
+                    label_tag_tensor[int(i) - 398] = 1
+            label_cul_tensor = label_cul_tensor.to(self.device)
+            label_tag_tensor = label_tag_tensor.to(self.device)
+            if self.transform:
+                img = self.transform(img)
+            img = img.to(self.device)
+            return [img, label_cul_tensor, label_tag_tensor]
+        else:
+            label_tensor = torch.zeros((1103))
+            for i in label:
+                label_tensor[int(i)] = 1
+            label_tensor = label_tensor.to(self.device)
+            if self.transform:
+                img = self.transform(img)
+            img = img.to(self.device)
+            return [img, label_tensor]
 
+class IMetDataLoader:
+    def __init__(self, config):
+        """
+        param config (All String)
+        device : 'gpu' or anything(cpu)
+        mode : 'train' or 'val' or 'test'
+        csv_path : csv file path
+        root_dir : image directory path
+        double_label : True or False
+        batch_size : 32
+        """
 
-def load_transform_image(
-        item, root: Path, image_transform: Callable, debug: bool = False):
-    image = load_image(item, root)
-    image = image_transform(image)
-    if debug:
-        image.save('_debug.png')
-    return tensor_transform(image)
+        self.config = config
+        if config.device == 'gpu' and torch.cuda.is_available():
+            device = 'cuda:0'
+        else:
+            device = 'cpu'
+        shuffle = False
+        if config.mode == 'train':
+            data_transforms = torchvision.transforms.Compose([
+                torchvision.transforms.RandomResizedCrop(224),
+                torchvision.transforms.RandomHorizontalFlip(),
+                torchvision.transforms.ToTensor(),
+                torchvision.transforms.Normalize(
+                    [0.485, 0.456, 0.406], 
+                    [0.229, 0.224, 0.225])
+            ])
+            shuffle = True
+        elif config.mode == 'val':
+            data_transforms = torchvision.transforms.Compose([
+                torchvision.transforms.Resize(256),
+                torchvision.transforms.CenterCrop(224),
+                torchvision.transforms.ToTensor(),
+                torchvision.transforms.Normalize(
+                    [0.485, 0.456, 0.406], 
+                    [0.229, 0.224, 0.225])
+            ])
+        elif config.mode == 'test':
+            raise NotImplementedError("This mode is not implemented YET")
+        else:
+            raise Exception("Please specify in the json a specified mode in data_mode")
 
+        if config.double_label == 'True':
+            flag = True
+        else:
+            flag = False
 
-def load_image(item, root: Path) -> Image.Image:
-    image = cv2.imread(str(root / f'{item.id}.png'))
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    return Image.fromarray(image)
+        dataset = IMetDataset(csv_path=Path(config.csv_path), root_dir=Path(config.root_dir), device=device, 
+                    mode=config.mode, transform=data_transforms, double_label=flag)
 
+        data_loader = data.DataLoader(dataset=dataset, batch_size=int(config.batch_size), shuffle=shuffle)
+        return data_loader
 
-def get_ids(root: Path) -> List[str]:
-    return sorted({p.name.split('_')[0] for p in root.glob('*.png')})
+if __name__ == '__main__':
+    config = dict()
+    imet_data = IMetDataLoader()
