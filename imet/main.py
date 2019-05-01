@@ -81,8 +81,8 @@ def main():
 
         train_loader = make_loader(train_fold, train_transform)
         valid_loader = make_loader(valid_fold, test_transform)
-        print(f'{len(train_loader.dataset):,} items in train, '
-              f'{len(valid_loader.dataset):,} in valid')
+        print('{:,} items in train, '.format(len(train_loader.dataset)),
+              '{:,} in valid'.format(len(valid_loader.dataset)))
 
         train_kwargs = dict(
             args=args,
@@ -155,7 +155,7 @@ def predict(model, root: Path, df: pd.DataFrame, out_path: Path,
         columns=map(str, range(N_CLASSES)))
     df = mean_df(df)
     df.to_hdf(out_path, 'prob', index_label='id')
-    print(f'Saved predictions to {out_path}')
+    print('Saved predictions to {}'.format(out_path))
 
 
 def train(args, model: nn.Module, criterion, *, params,
@@ -195,7 +195,7 @@ def train(args, model: nn.Module, criterion, *, params,
         model.train()
         tq = tqdm.tqdm(total=(args.epoch_size or
                               len(train_loader) * args.batch_size))
-        tq.set_description(f'Epoch {epoch}, lr {lr}')
+        tq.set_description('Epoch {}, lr {}'.format(epoch, lr))
         losses = []
         tl = train_loader
         if args.epoch_size:
@@ -216,7 +216,7 @@ def train(args, model: nn.Module, criterion, *, params,
                 tq.update(batch_size)
                 losses.append(loss.item())
                 mean_loss = np.mean(losses[-report_each:])
-                tq.set_postfix(loss=f'{mean_loss:.3f}')
+                tq.set_postfix(loss='{:.3f}'.format(mean_loss))
                 if i and i % report_each == 0:
                     write_event(log, step, loss=mean_loss)
             write_event(log, step, loss=mean_loss)
@@ -236,7 +236,7 @@ def train(args, model: nn.Module, criterion, *, params,
                 if lr_changes > max_lr_changes:
                     break
                 lr /= 5
-                print(f'lr updated to {lr}')
+                print('lr updated to {lr}'.format(lr=lr))
                 lr_reset_epoch = epoch
                 optimizer = init_optimizer(params, lr)
         except KeyboardInterrupt:
@@ -275,10 +275,10 @@ def validation(
     metrics = {}
     argsorted = all_predictions.argsort(axis=1)
     for threshold in [0.05, 0.10, 0.15, 0.20]:
-        metrics[f'valid_f2_th_{threshold:.2f}'] = get_score(
+        metrics['valid_f2_th_{:.2f}'.format(threshold)] = get_score(
             binarize_prediction(all_predictions, threshold, argsorted))
     metrics['valid_loss'] = np.mean(all_losses)
-    print(' | '.join(f'{k} {v:.3f}' for k, v in sorted(
+    print(' | '.join('{} {:.3f}'.format(k, v) for k, v in sorted(
         metrics.items(), key=lambda kv: -kv[1])))
 
     return metrics

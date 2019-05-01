@@ -59,8 +59,7 @@ class RandomSizedCrop:
         return crop(scale(img))
 
 
-class RandomeFunctional:
-
+class RandomFunctional:
     def __init__(self, augmentations=[
         'hue',
         'contrast',
@@ -97,19 +96,19 @@ class RandomeFunctional:
                     self._contrast_transform
                 )
     def _brightness_transform(self, img):
-        return adjust_brightness(img, random.uniform(self.brightness_factor_range))
+        return adjust_brightness(img, random.uniform(*self.brightness_factor_range))
         
     def _contrast_transform(self, img):
-        return adjust_contrast(img, random.uniform(self.contrast_factor_range))
+        return adjust_contrast(img, random.uniform(*self.contrast_factor_range))
     
     def _hue_transform(self, img):
-        return adjust_hue(img, random.uniform(self.hue_factor_range))
+        return adjust_hue(img, random.uniform(*self.hue_factor_range))
     
     def _saturation_transform(self, img):
-        return adjust_saturation(img, random.uniform(self.saturation_range))
+        return adjust_saturation(img, random.uniform(*self.saturation_range))
     
     def _gamma_transform(self, img):
-        return adjust_gamma(img, random.uniform(self.gamma_range))
+        return adjust_gamma(img, random.uniform(*self.gamma_range))
 
     def __call__(self, img):
         for transform in self.transformations:
@@ -117,14 +116,13 @@ class RandomeFunctional:
         return img 
 
 
-train_transform = RandomOrder(Compose([
+train_transform = Compose([
     RandomCrop(288),
     RandomHorizontalFlip(),
     RandomVerticalFlip(),
-    Scale(),
     RandomRotation((-50,50)),
-    RandomeFunctional
-]))
+    RandomFunctional()
+])
 
 
 test_transform = Compose([

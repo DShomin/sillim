@@ -14,7 +14,7 @@ from torch import nn
 from torch.utils.data import DataLoader
 
 
-ON_KAGGLE: bool = 'KAGGLE_WORKING_DIR' in os.environ
+ON_KAGGLE = 'KAGGLE_WORKING_DIR' in os.environ
 
 
 def gmean_df(df: pd.DataFrame) -> pd.DataFrame:
