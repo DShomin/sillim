@@ -21,6 +21,7 @@ from .transforms import train_transform, test_transform
 from .utils import (
     write_event, load_model, mean_df, ThreadingDataLoader as DataLoader,
     ON_KAGGLE)
+from .customs import FocalLoss
 
 
 def main():
@@ -40,6 +41,7 @@ def main():
     arg('--epoch-size', type=int)
     arg('--tta', type=int, default=4)
     arg('--use-sample', action='store_true', help='use a sample of the dataset')
+    arg('--focal_loss', action='store_true', help='use focal loss')
     arg('--debug', action='store_true')
     arg('--limit', type=int)
     arg('--fold', type=int, default=0)
@@ -63,7 +65,10 @@ def main():
             batch_size=args.batch_size,
             num_workers=args.workers,
         )
-    criterion = nn.BCEWithLogitsLoss(reduction='none')
+    if args.focal_loss:
+        criterion = FocalLoss(gamma=2)
+    else:
+        criterion = nn.BCEWithLogitsLoss(reduction='none')
     model = getattr(models, args.model)(
         num_classes=N_CLASSES, pretrained=args.pretrained)
     use_cuda = cuda.is_available()
@@ -206,7 +211,11 @@ def train(args, model: nn.Module, criterion, *, params,
                 if use_cuda:
                     inputs, targets = inputs.cuda(), targets.cuda()
                 outputs = model(inputs)
-                loss = _reduce_loss(criterion(outputs, targets))
+                if args.focal_loss:
+                    loss = criterion(outputs, targets)
+                else:
+                    loss = _reduce_loss(criterion(outputs, targets))
+
                 batch_size = inputs.size(0)
                 (batch_size * loss).backward()
                 if (i + 1) % args.step == 0:
@@ -222,7 +231,7 @@ def train(args, model: nn.Module, criterion, *, params,
             write_event(log, step, loss=mean_loss)
             tq.close()
             save(epoch + 1)
-            valid_metrics = validation(model, criterion, valid_loader, use_cuda)
+            valid_metrics = validation(model, criterion, valid_loader, use_cuda, args)
             write_event(log, step, **valid_metrics)
             valid_loss = valid_metrics['valid_loss']
             valid_losses.append(valid_loss)
@@ -249,7 +258,7 @@ def train(args, model: nn.Module, criterion, *, params,
 
 
 def validation(
-        model: nn.Module, criterion, valid_loader, use_cuda,
+        model: nn.Module, criterion, valid_loader, use_cuda, args
         ) -> Dict[str, float]:
     model.eval()
     all_losses, all_predictions, all_targets = [], [], []
@@ -259,8 +268,12 @@ def validation(
             if use_cuda:
                 inputs, targets = inputs.cuda(), targets.cuda()
             outputs = model(inputs)
-            loss = criterion(outputs, targets)
-            all_losses.append(_reduce_loss(loss).item())
+            if args.focal_loss:
+                loss = _reduce_loss(loss).item()
+            else:
+                loss = criterion(outputs, targets)
+
+            all_losses.append(loss)
             predictions = torch.sigmoid(outputs)
             all_predictions.append(predictions.cpu().numpy())
     all_predictions = np.concatenate(all_predictions)
