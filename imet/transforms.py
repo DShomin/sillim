@@ -4,8 +4,15 @@ import math
 from PIL import Image
 from torchvision.transforms import (
     ToTensor, Normalize, Compose, Resize, CenterCrop, RandomCrop,
+    RandomRotation, RandomVerticalFlip, RandomOrder,
     RandomHorizontalFlip)
-
+from torchvision.transforms.functional import (
+    adjust_brightness,
+    adjust_contrast,
+    adjust_gamma,
+    adjust_hue,
+    adjust_saturation
+)
 
 class RandomSizedCrop:
     """Random crop the given PIL.Image to a random size
@@ -52,15 +59,81 @@ class RandomSizedCrop:
         return crop(scale(img))
 
 
-train_transform = Compose([
+class RandomeFunctional:
+
+    def __init__(self, augmentations=[
+        'hue',
+        'contrast',
+        'brightness',
+        'gamma',
+        'saturation'
+    ]):
+        self.transformations = []
+        self.contrast_factor_range = (0.5, 1.5) # 0: gray, 1: original, 2: 2increased
+        self.brightness_factor_range = (0.5, 1.5)
+        self.gamma_range = (0.5, 1.5)
+        self.hue_factor_range = (-0.5, 0.5)
+        self.saturation_range = (0.5, 1.5) 
+
+        for augments in augmentations:
+            if augments == 'hue':
+                self.transformations.append(
+                    self._hue_transform
+                )
+            elif augments == 'contrast':
+                self.transformations.append(
+                    self._contrast_transform
+                )
+            elif augments == 'brightness':
+                self.transformations.append(
+                    self._contrast_transform
+                )
+            elif augments == 'gamma':
+                self.transformations.append(
+                    self._contrast_transform
+                )
+            elif augments == 'saturation':
+                self.transformations.append(
+                    self._contrast_transform
+                )
+    def _brightness_transform(self, img):
+        return adjust_brightness(img, random.uniform(self.brightness_factor_range))
+        
+    def _contrast_transform(self, img):
+        return adjust_contrast(img, random.uniform(self.contrast_factor_range))
+    
+    def _hue_transform(self, img):
+        return adjust_hue(img, random.uniform(self.hue_factor_range))
+    
+    def _saturation_transform(self, img):
+        return adjust_saturation(img, random.uniform(self.saturation_range))
+    
+    def _saturation_transform(self, img):
+        return adjust_saturation(img, random.uniform(self.saturation_range))
+    
+    def _gamma_transform(self, img):
+        return adjust_gamma(img, random.uniform(self.gamma_range))
+
+    def __call__(self, img):
+        for transform in self.transformations:
+            img = transform(img)
+        return img 
+
+
+train_transform = RandomOrder(Compose([
     RandomCrop(288),
     RandomHorizontalFlip(),
-])
+    RandomVerticalFlip(),
+    Scale(),
+    RandomRotation((-50,50)),
+    RandomeFunctional
+]))
 
 
 test_transform = Compose([
     RandomCrop(288),
     RandomHorizontalFlip(),
+    RandomRotation((-50,50))
 ])
 
 
