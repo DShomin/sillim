@@ -108,9 +108,6 @@ class RandomeFunctional:
     def _saturation_transform(self, img):
         return adjust_saturation(img, random.uniform(self.saturation_range))
     
-    def _saturation_transform(self, img):
-        return adjust_saturation(img, random.uniform(self.saturation_range))
-    
     def _gamma_transform(self, img):
         return adjust_gamma(img, random.uniform(self.gamma_range))
 
