@@ -64,7 +64,7 @@ def load_transform_image(
 
 
 def load_image(item, root: Path) -> Image.Image:
-    image = cv2.imread(str(root / f'{item.id}.png'))
+    image = cv2.imread(str(root / '{}.png'.format(item.id)))
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     return Image.fromarray(image)
 
