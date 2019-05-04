@@ -207,7 +207,8 @@ def train(args, model: nn.Module, criterion, *, params,
             tl = islice(tl, args.epoch_size // args.batch_size)
         try:
             mean_loss = 0
-            valid_metrics = validation(model, criterion, valid_loader, use_cuda, args)
+            # for debug
+            #valid_metrics = validation(model, criterion, valid_loader, use_cuda, args)
             for i, (inputs, targets) in enumerate(tl):
                 if use_cuda:
                     inputs, targets = inputs.cuda(), targets.cuda()
@@ -229,6 +230,7 @@ def train(args, model: nn.Module, criterion, *, params,
             write_event(log, step, loss=mean_loss)
             tq.close()
             save(epoch + 1)
+            print(epoch)
             valid_metrics = validation(model, criterion, valid_loader, use_cuda, args)
             write_event(log, step, **valid_metrics)
             valid_loss = valid_metrics['valid_loss']

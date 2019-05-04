@@ -343,8 +343,8 @@ class SENet(nn.Module):
         if self.fc is not None:
             v = self.fc(v)
         
-        if not self.training:
-            return v
+        # if not self.training:
+        #     return v
         
         y = self.classifier(v)
         
