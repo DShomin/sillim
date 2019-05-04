@@ -4,7 +4,7 @@ from torch.nn import functional as F
 from torch.autograd import Variable
 
 # Source: https://www.kaggle.com/c/human-protein-atlas-image-classification/discussion/78109
-class FocalLoss_(nn.Module):
+class FocalLoss(nn.Module):
     def __init__(self, gamma=2):
         super().__init__()
         self.gamma = gamma
@@ -21,11 +21,11 @@ class FocalLoss_(nn.Module):
             loss = loss.sum(dim=1)
         return loss.mean()
 
-class FocalLoss(nn.modules.loss._WeightedLoss):
+class FocalLoss_(nn.modules.loss._WeightedLoss):
 
     def __init__(self, gamma=2, weight=None, size_average=None, ignore_index=-100,
                  reduce=None, reduction='mean', balance_param=0.25):
-        super(FocalLoss, self).__init__(weight, size_average, reduce, reduction)
+        super(FocalLoss_, self).__init__(weight, size_average, reduce, reduction)
         self.gamma = gamma
         self.weight = weight
         self.size_average = size_average
