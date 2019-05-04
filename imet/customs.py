@@ -25,7 +25,7 @@ class FocalLoss(nn.modules.loss._WeightedLoss):
 
     def __init__(self, gamma=2, weight=None, size_average=None, ignore_index=-100,
                  reduce=None, reduction='mean', balance_param=0.25):
-        super(FocalLoss2d, self).__init__(weight, size_average, reduce, reduction)
+        super(FocalLoss, self).__init__(weight, size_average, reduce, reduction)
         self.gamma = gamma
         self.weight = weight
         self.size_average = size_average
