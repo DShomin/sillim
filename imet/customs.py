@@ -12,6 +12,8 @@ class FocalLoss(nn.Module):
     def forward(self, logit, target):
         target = target.float()
         max_val = (-logit).clamp(min=0)
+        print(logit.size(), target.size(), max_val.size())
+        raise
         loss = logit - logit * target + max_val + \
                ((-max_val).exp() + (-logit - max_val).exp()).log()
 
@@ -19,7 +21,7 @@ class FocalLoss(nn.Module):
         loss = (invprobs * self.gamma).exp() * loss
         if len(loss.size())==2:
             loss = loss.sum(dim=1)
-        return loss.mean()
+        return loss
 
 class FocalLoss_(nn.modules.loss._WeightedLoss):
 

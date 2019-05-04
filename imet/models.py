@@ -5,6 +5,7 @@ from torch import nn
 from torch.nn import functional as F
 import torchvision.models as M
 
+from .senet import se_resnext50_32x4d, se_resnext101_32x4d
 from .utils import ON_KAGGLE
 
 
@@ -64,6 +65,36 @@ class DenseNet(nn.Module):
         out = self.net.classifier(out)
         return out
 
+se_model_list = [
+    'se_resnext50_32x4d',
+    'se_resnext101_32x4d'
+]
+
+class SeResNet(nn.Module):
+    def __init__(self, num_classes,
+                 pretrained=None,
+                 model_name='se_resnext50_32x4d'):
+        super().__init__()
+        if model_name == 'se_resnext50_32x4d':
+            self.net = se_resnext50_32x4d(num_classes, pretrained=False)
+            pretrained_file = 'se_resnext50_32x4d-a260b3a4.pth'
+        else:
+            self.net = se_resnext101_32x4d(num_classes, pretrained=False)
+            pretrained_file = 'se_resnext101_32x4d-3b2fe3d8.pth'
+        net_dict = self.net.state_dict()
+        weights_path = f'../input/se-resnext-pytorch-pretrained/{pretrained_file}'
+        pretrained_dict = torch.load(weights_path)
+        pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in net_dict}
+        net_dict.update(pretrained_dict)
+        self.net.load_state_dict(net_dict)
+
+    def fresh_params(self):
+        return self.net.classifier.parameters()
+
+    def forward(self, x):
+        out = self.net(x)
+        return out
+
 
 resnet18 = partial(ResNet, net_cls=M.resnet18)
 resnet34 = partial(ResNet, net_cls=M.resnet34)
@@ -75,3 +106,6 @@ densenet121 = partial(DenseNet, net_cls=M.densenet121)
 densenet169 = partial(DenseNet, net_cls=M.densenet169)
 densenet201 = partial(DenseNet, net_cls=M.densenet201)
 densenet161 = partial(DenseNet, net_cls=M.densenet161)
+
+seresnext50 = partial(SeResNet, model_name='se_resnext50_32x4d')
+seresnext101 = partial(SeResNet, model_name='se_resnext101_32x4d')
