@@ -269,9 +269,10 @@ def validation(
                 inputs, targets = inputs.cuda(), targets.cuda()
             outputs = model(inputs)
             if args.focal_loss:
-                loss = _reduce_loss(loss).item()
+                loss = criterion(outputs, targets).item()
             else:
                 loss = criterion(outputs, targets)
+                loss = _reduce_loss(loss).item()
 
             all_losses.append(loss)
             predictions = torch.sigmoid(outputs)
