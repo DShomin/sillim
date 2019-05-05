@@ -19,7 +19,7 @@ class FocalLoss(nn.Module):
         loss = (invprobs * self.gamma).exp() * loss
         if len(loss.size())==2:
             loss = loss.sum(dim=1)
-        return loss.mean()
+        return loss
 
 class FocalLoss_(nn.modules.loss._WeightedLoss):
 

@@ -29,7 +29,7 @@ def main():
     arg = parser.add_argument
     arg('mode', choices=['train', 'validate', 'predict_valid', 'predict_test'])
     arg('run_root')
-    arg('--model', default='resnet50')
+    arg('--model', default='seresnext50')
     arg('--pretrained', type=int, default=1)
     arg('--batch-size', type=int, default=64)
     arg('--step', type=int, default=1)
@@ -207,14 +207,13 @@ def train(args, model: nn.Module, criterion, *, params,
             tl = islice(tl, args.epoch_size // args.batch_size)
         try:
             mean_loss = 0
+            # for debug
+            #valid_metrics = validation(model, criterion, valid_loader, use_cuda, args)
             for i, (inputs, targets) in enumerate(tl):
                 if use_cuda:
                     inputs, targets = inputs.cuda(), targets.cuda()
                 outputs = model(inputs)
-                if args.focal_loss:
-                    loss = criterion(outputs, targets)
-                else:
-                    loss = _reduce_loss(criterion(outputs, targets))
+                loss = _reduce_loss(criterion(outputs, targets))
 
                 batch_size = inputs.size(0)
                 (batch_size * loss).backward()
@@ -231,6 +230,7 @@ def train(args, model: nn.Module, criterion, *, params,
             write_event(log, step, loss=mean_loss)
             tq.close()
             save(epoch + 1)
+            print(epoch)
             valid_metrics = validation(model, criterion, valid_loader, use_cuda, args)
             write_event(log, step, **valid_metrics)
             valid_loss = valid_metrics['valid_loss']
@@ -268,11 +268,9 @@ def validation(
             if use_cuda:
                 inputs, targets = inputs.cuda(), targets.cuda()
             outputs = model(inputs)
-            if args.focal_loss:
-                loss = criterion(outputs, targets).item()
-            else:
-                loss = criterion(outputs, targets)
-                loss = _reduce_loss(loss).item()
+
+            loss = criterion(outputs, targets)
+            loss = _reduce_loss(loss).item()
 
             all_losses.append(loss)
             predictions = torch.sigmoid(outputs)
