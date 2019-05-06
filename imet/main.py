@@ -45,6 +45,7 @@ def main():
     arg('--debug', action='store_true')
     arg('--limit', type=int)
     arg('--fold', type=int, default=0)
+    arg('--smoothing', type=bool, default=False)
     args = parser.parse_args()
 
     run_root = Path(args.run_root)
@@ -60,7 +61,7 @@ def main():
 
     def make_loader(df: pd.DataFrame, image_transform) -> DataLoader:
         return DataLoader(
-            TrainDataset(train_root, df, image_transform, debug=args.debug),
+            TrainDataset(train_root, df, image_transform, debug=args.debug, smoothing=args.smoothing),
             shuffle=True,
             batch_size=args.batch_size,
             num_workers=args.workers,

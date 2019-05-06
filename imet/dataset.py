@@ -17,12 +17,13 @@ DATA_ROOT = Path('../input/imet-2019-fgvc6' if ON_KAGGLE else './data')
 
 class TrainDataset(Dataset):
     def __init__(self, root: Path, df: pd.DataFrame,
-                 image_transform: Callable, debug: bool = True):
+                 image_transform: Callable, debug: bool = True, smoothing: bool = False):
         super().__init__()
         self._root = root
         self._df = df
         self._image_transform = image_transform
         self._debug = debug
+        self.smoothing = smoothing
 
     def __len__(self):
         return len(self._df)
@@ -32,8 +33,15 @@ class TrainDataset(Dataset):
         image = load_transform_image(
             item, self._root, self._image_transform, debug=self._debug)
         target = torch.zeros(N_CLASSES)
-        for cls in item.attribute_ids.split():
-            target[int(cls)] = 1
+        if self.smoothing:
+            eps = 0.1
+            target += eps / (N_CLASSES - 1)
+            for cls in item.attribute_ids.split():
+                target[int(cls)] = 1 - eps
+        else:
+            for cls in item.attribute_ids.split():
+                target[int(cls)] = 1
+
         return image, target
 
 
