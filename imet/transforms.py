@@ -117,7 +117,7 @@ class RandomFunctional:
 
 
 train_transform = Compose([
-    RandomCrop(288),
+    RandomCrop(144),
     RandomHorizontalFlip(),
     RandomVerticalFlip(),
     RandomRotation((-50,50)),
@@ -126,7 +126,7 @@ train_transform = Compose([
 
 
 test_transform = Compose([
-    RandomCrop(288),
+    RandomCrop(144),
     RandomHorizontalFlip(),
     RandomRotation((-50,50))
 ])

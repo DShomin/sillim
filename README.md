@@ -5,6 +5,11 @@
 - build script(https://github.com/lopuhin/kaggle-script-template)
 - pytorch template(https://github.com/victoresque/pytorch-template)
 
+## Added datasets
+
+- resnet50(https://www.kaggle.com/pytorch/resnet50)
+- se-resnext(https://www.kaggle.com/seefun/se-resnext-pytorch-pretrained)
+
 
 # Arguments
 
