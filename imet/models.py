@@ -21,7 +21,11 @@ def create_net(net_cls, pretrained: bool):
         weights_path = f'../input/{model_name}/{model_name}.pth'
         net.load_state_dict(torch.load(weights_path))
     else:
-        net = net_cls(pretrained=pretrained)
+        #net = net_cls(pretrained=pretrained)
+        net = net_cls()
+        model_name = net_cls.__name__
+        weights_path = f'../input/{model_name}/{model_name}.pth'
+        net.load_state_dict(torch.load(weights_path))
     return net
 
 
