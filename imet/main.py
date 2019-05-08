@@ -29,7 +29,7 @@ def main():
     arg = parser.add_argument
     arg('mode', choices=['train', 'validate', 'predict_valid', 'predict_test'])
     arg('run_root')
-    arg('--model', default='seresnext50')
+    arg('--model', default='resnet50')
     arg('--pretrained', type=int, default=1)
     arg('--batch-size', type=int, default=64)
     arg('--step', type=int, default=1)
