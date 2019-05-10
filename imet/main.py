@@ -136,6 +136,7 @@ def main():
                 ss = ss[ss['id'].isin(set(get_ids(test_root)))]
             if args.limit:
                 ss = ss[:args.limit]
+            run_root.mkdir(exist_ok=True, parents=True)
             predict(model, df=ss, root=test_root,
                     out_path=run_root / 'test.h5',
                     **predict_kwargs)
