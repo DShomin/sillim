@@ -1,10 +1,10 @@
 import random
 import math
 
-from PIL import Image
+from PIL import Image, ImageOps
 from torchvision.transforms import (
     ToTensor, Normalize, Compose, Resize, CenterCrop, RandomCrop,
-    RandomRotation, RandomVerticalFlip, RandomOrder,
+    RandomRotation, RandomVerticalFlip, RandomOrder, RandomApply,
     RandomHorizontalFlip)
 from torchvision.transforms.functional import (
     adjust_brightness,
@@ -61,11 +61,11 @@ class RandomSizedCrop:
 
 class RandomFunctional:
     def __init__(self, augmentations=[
-        'hue',
-        'contrast',
+        #'hue',
+        #'contrast',
         'brightness',
-        'gamma',
-        'saturation'
+        #'gamma',
+        #'saturation'
     ]):
         self.transformations = []
         self.contrast_factor_range = (0.5, 1.5) # 0: gray, 1: original, 2: 2increased
@@ -116,19 +116,47 @@ class RandomFunctional:
         return img 
 
 
-train_transform = Compose([
-    RandomCrop(288),
+class KeepAsepctResize:
+    def __init__(self, target_size=(288, 288)):
+        self.target_size = target_size
+    
+    def __call__(self, img):
+        width, height = img.size
+        long_side = max(width, height)
+        
+        delta_w = long_side - width
+        delta_h = long_side - height
+        padding = (delta_w//2, delta_h//2, delta_w-(delta_w//2), delta_h-(delta_h//2))
+        img = ImageOps.expand(img, padding)
+        img = img.resize(self.target_size)
+        return img
+
+base_train_augments = [
     RandomHorizontalFlip(),
     RandomVerticalFlip(),
     RandomRotation((-50,50)),
     RandomFunctional()
+]
+
+base_test_augments = [
+    RandomHorizontalFlip(),
+    RandomRotation((-50,50))
+]
+
+target_size = (288, 288)
+
+
+train_transform = Compose([
+    #RandomCrop(target_size),
+    #KeepAsepctResize(target_size),
+    RandomApply(base_train_augments, p=0.5),
 ])
 
 
 test_transform = Compose([
-    RandomCrop(288),
-    RandomHorizontalFlip(),
-    RandomRotation((-50,50))
+    #RandomCrop(target_size),
+    #KeepAsepctResize(target_size),
+    RandomApply(base_test_augments, p=0.5)
 ])
 
 
