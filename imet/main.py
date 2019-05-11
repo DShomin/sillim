@@ -45,6 +45,7 @@ def main():
     arg('--debug', action='store_true')
     arg('--limit', type=int)
     arg('--fold', type=int, default=0)
+    arg('--model_path', type=str)
     args = parser.parse_args()
 
     run_root = Path(args.run_root)
@@ -113,7 +114,10 @@ def main():
                    use_cuda=use_cuda)
 
     elif args.mode.startswith('predict'):
-        load_model(model, run_root / 'best-model.pt')
+        if args.model_path is None:
+            load_model(model, run_root / 'best-model.pt')
+        else:
+            load_model(model, args.model_path)
         predict_kwargs = dict(
             batch_size=args.batch_size,
             tta=args.tta,
@@ -132,6 +136,7 @@ def main():
                 ss = ss[ss['id'].isin(set(get_ids(test_root)))]
             if args.limit:
                 ss = ss[:args.limit]
+            run_root.mkdir(exist_ok=True, parents=True)
             predict(model, df=ss, root=test_root,
                     out_path=run_root / 'test.h5',
                     **predict_kwargs)

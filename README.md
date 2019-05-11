@@ -23,3 +23,5 @@
     - densenet169
     - densenet201
     - densenet161
+    - seresnext50
+    - seresnext101
