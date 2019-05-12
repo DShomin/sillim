@@ -21,31 +21,34 @@ class FocalLoss(nn.Module):
             loss = loss.sum(dim=1)
         return loss
 
-class FocalLoss_(nn.modules.loss._WeightedLoss):
+# https://www.kaggle.com/backaggle/imet-fastai-starter-focal-and-fbeta-loss#Create-learner-with-densenet121-and-FocalLoss
+class FbetaLoss(nn.Module):
+    def __init__(self, beta=1):
+        super(FbetaLoss, self).__init__()
+        self.small_value = 1e-6
+        self.beta = beta
 
-    def __init__(self, gamma=2, weight=None, size_average=None, ignore_index=-100,
-                 reduce=None, reduction='mean', balance_param=0.25):
-        super(FocalLoss_, self).__init__(weight, size_average, reduce, reduction)
-        self.gamma = gamma
-        self.weight = weight
-        self.size_average = size_average
-        self.ignore_index = ignore_index
-        self.balance_param = balance_param
+    def forward(self, logits, labels):
+        beta = self.beta
+        batch_size = logits.size()[0]
+        p = F.sigmoid(logits)
+        l = labels
+        num_pos = torch.sum(p, 1) + self.small_value
+        num_pos_hat = torch.sum(l, 1) + self.small_value
+        tp = torch.sum(l * p, 1)
+        precise = tp / num_pos
+        recall = tp / num_pos_hat
+        fs = (1 + beta * beta) * precise * recall / (beta * beta * precise + recall + self.small_value)
+        loss = fs.sum() / batch_size
+        return 1 - loss
 
-    def forward(self, input, target):
+class CombineLoss(nn.Module):
+    def __init__(self):
+        super(CombineLoss, self).__init__()
+        self.fbeta_loss = FbetaLoss(beta=2)
+        self.focal_loss = FocalLoss()
         
-        # inputs and targets are assumed to be BatchxClasses
-        assert len(input.shape) == len(target.shape)
-        assert input.size(0) == target.size(0)
-        assert input.size(1) == target.size(1)
-        
-        weight = Variable(self.weight)
-           
-        # compute the negative likelyhood
-        logpt = - F.binary_cross_entropy_with_logits(input, target, pos_weight=weight, reduction=self.reduction)
-        pt = torch.exp(logpt)
-
-        # compute the loss
-        focal_loss = -( (1-pt)**self.gamma ) * logpt
-        balanced_focal_loss = self.balance_param * focal_loss
-        return balanced_focal_loss
+    def forward(self, logits, labels):
+        loss_beta = self.fbeta_loss(logits, labels)
+        loss_focal = self.focal_loss(logits, labels)
+        return 0.5 * loss_beta + 0.5 * loss_focal

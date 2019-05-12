@@ -17,7 +17,7 @@ import tqdm
 
 from . import models
 from .dataset import TrainDataset, TTADataset, get_ids, N_CLASSES, DATA_ROOT
-from .transforms import train_transform, test_transform
+from .transforms import get_transform
 from .utils import (
     write_event, load_model, mean_df, ThreadingDataLoader as DataLoader,
     ON_KAGGLE)
@@ -46,6 +46,10 @@ def main():
     arg('--limit', type=int)
     arg('--fold', type=int, default=0)
     arg('--model_path', type=str)
+    arg('--train_augments', default='random_crop, horizontal_flip', type=str)
+    arg('--test_augments', default='random_crop, horizontal_flip', type=str)
+    arg('--size', default=288, type=int)
+    arg('--augment_ratio', default=0.5, type=float)
     args = parser.parse_args()
 
     run_root = Path(args.run_root)
@@ -77,6 +81,9 @@ def main():
     all_params = list(model.parameters())
     if use_cuda:
         model = model.cuda()
+    target_size = (args.size, args.size)
+    train_transform = get_transform(target_size, args.train_augments, args.augment_ratio)
+    test_transform = get_transform(target_size, args.test_augments, args.augment_ratio)
 
     if args.mode == 'train':
         if run_root.exists() and args.clean:

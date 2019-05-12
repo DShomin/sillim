@@ -58,63 +58,12 @@ class RandomSizedCrop:
         crop = CenterCrop(self.size)
         return crop(scale(img))
 
-
-class RandomFunctional:
-    def __init__(self, augmentations=[
-        #'hue',
-        #'contrast',
-        'brightness',
-        #'gamma',
-        #'saturation'
-    ]):
-        self.transformations = []
-        self.contrast_factor_range = (0.5, 1.5) # 0: gray, 1: original, 2: 2increased
-        self.brightness_factor_range = (0.5, 1.5)
-        self.gamma_range = (0.5, 1.5)
-        self.hue_factor_range = (-0.5, 0.5)
-        self.saturation_range = (0.5, 1.5) 
-
-        for augments in augmentations:
-            if augments == 'hue':
-                self.transformations.append(
-                    self._hue_transform
-                )
-            elif augments == 'contrast':
-                self.transformations.append(
-                    self._contrast_transform
-                )
-            elif augments == 'brightness':
-                self.transformations.append(
-                    self._contrast_transform
-                )
-            elif augments == 'gamma':
-                self.transformations.append(
-                    self._contrast_transform
-                )
-            elif augments == 'saturation':
-                self.transformations.append(
-                    self._contrast_transform
-                )
-    def _brightness_transform(self, img):
-        return adjust_brightness(img, random.uniform(*self.brightness_factor_range))
-        
-    def _contrast_transform(self, img):
-        return adjust_contrast(img, random.uniform(*self.contrast_factor_range))
-    
-    def _hue_transform(self, img):
-        return adjust_hue(img, random.uniform(*self.hue_factor_range))
-    
-    def _saturation_transform(self, img):
-        return adjust_saturation(img, random.uniform(*self.saturation_range))
-    
-    def _gamma_transform(self, img):
-        return adjust_gamma(img, random.uniform(*self.gamma_range))
-
+class RandomRotate:
+    def __init__(self):
+        self.degrees = [0, 90, 180, 270]
     def __call__(self, img):
-        for transform in self.transformations:
-            img = transform(img)
-        return img 
-
+        degree = random.choice(self.degrees)
+        return img.transpose(degree)
 
 class KeepAsepctResize:
     def __init__(self, target_size=(288, 288)):
@@ -131,33 +80,6 @@ class KeepAsepctResize:
         img = img.resize(self.target_size)
         return img
 
-base_train_augments = [
-    RandomHorizontalFlip(),
-    #RandomVerticalFlip(),
-    #RandomRotation((-50,50)),
-    #RandomFunctional()
-]
-
-base_test_augments = [
-    RandomHorizontalFlip(),
-    #RandomRotation((-50,50))
-]
-
-target_size = (288, 288)
-
-
-train_transform = Compose([
-    RandomCrop(target_size),
-    #KeepAsepctResize(target_size),
-    RandomApply(base_train_augments, p=0.5),
-])
-
-
-test_transform = Compose([
-    RandomCrop(target_size),
-    #KeepAsepctResize(target_size),
-    RandomApply(base_test_augments, p=0.5)
-])
 
 
 tensor_transform = Compose([
@@ -165,5 +87,32 @@ tensor_transform = Compose([
     Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
 ])
 
-def get_transform(mode='train', target_size=(288,288), augment_ratio=0.5):
-    pass
+def get_transform(
+        target_size=(288,288),
+        transform_list='random_crop, horizontal_flip', # random_crop | keep_aspect
+        augment_ratio=0.5
+        ):
+    transform = list()
+    transform_list = transform_list.split(', ')
+    augments = list()
+
+    for transform_name in transform_list:
+        if transform_name == 'random_crop':
+            transform.append(RandomCrop(target_size))
+        elif transform_name == 'keep_aspect':
+            transform.append(KeepAsepctResize(target_size))
+        elif transform_name == 'horizontal_flip':
+            augments.append(RandomHorizontalFlip())
+        elif transform_name == 'vertical_flip':
+            augments.append(RandomVerticalFlip())
+        elif transform_name == 'random_rotate':
+            augments.append(RandomRotate())
+        elif transform_name == 'random_shift':
+            pass
+        elif transform_name == 'random_scale':
+            pass
+        elif transform_name == 'color_jitter':
+            pass
+    transform.append(RandomApply(augments, p=augment_ratio))    
+    
+    return Compose(transform)
