@@ -1,0 +1,22 @@
+{
+    "batch_size": 2,
+    "clean": false,
+    "debug": false,
+    "epoch_size": null,
+    "focal_loss": true,
+    "fold": 0,
+    "limit": null,
+    "lr": 0.0001,
+    "mode": "train",
+    "model": "resnet50",
+    "model_path": null,
+    "n_epochs": 25,
+    "patience": 4,
+    "pretrained": 1,
+    "run_root": "model_1",
+    "step": 1,
+    "tta": 4,
+    "use_sample": false,
+    "variable_input": true,
+    "workers": 4
+}

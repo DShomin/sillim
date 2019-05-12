@@ -20,7 +20,7 @@ from .dataset import TrainDataset, TTADataset, get_ids, N_CLASSES, DATA_ROOT
 from .transforms import train_transform, test_transform
 from .utils import (
     write_event, load_model, mean_df, ThreadingDataLoader as DataLoader,
-    ON_KAGGLE)
+    ON_KAGGLE, variable_input_collate)
 from .customs import FocalLoss
 
 
@@ -46,6 +46,7 @@ def main():
     arg('--limit', type=int)
     arg('--fold', type=int, default=0)
     arg('--model_path', type=str)
+    arg('--variable_input', action='store_true', help='use varaible input')
     args = parser.parse_args()
 
     run_root = Path(args.run_root)
@@ -60,11 +61,19 @@ def main():
         valid_fold = valid_fold[:args.limit]
 
     def make_loader(df: pd.DataFrame, image_transform) -> DataLoader:
+        extra_args = dict()
+        if args.variable_input:
+            collate_fn = {
+                'collate_fn': variable_input_collate
+            }
+            extra_args.update(collate_fn)
+        
         return DataLoader(
             TrainDataset(train_root, df, image_transform, debug=args.debug),
             shuffle=True,
             batch_size=args.batch_size,
             num_workers=args.workers,
+            **extra_args
         )
     if args.focal_loss:
         criterion = FocalLoss(gamma=2)

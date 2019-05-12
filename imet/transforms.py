@@ -147,16 +147,16 @@ target_size = (288, 288)
 
 
 train_transform = Compose([
-    RandomCrop(target_size),
+    #RandomCrop(target_size),
     #KeepAsepctResize(target_size),
     RandomApply(base_train_augments, p=0.5),
 ])
 
 
 test_transform = Compose([
-    RandomCrop(target_size),
+    #RandomCrop(target_size),
     #KeepAsepctResize(target_size),
-    RandomApply(base_test_augments, p=0.5)
+    #RandomApply(base_test_augments, p=0.5)
 ])
 
 

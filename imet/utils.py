@@ -160,3 +160,10 @@ def plot(*args, ymin=None, ymax=None, xmin=None, xmax=None, params=False,
 def _smooth(ys, indices):
     return [np.mean(ys[idx: indices[i + 1]])
             for i, idx in enumerate(indices[:-1])]
+
+
+def variable_input_collate(batch):
+    data = [item[0] for item in batch]
+    target = [item[1] for item in batch]
+    #target = torch.LongTensor(target)
+    return (data, target)
