@@ -58,8 +58,8 @@ def get_transform(
             augments.append(RandomRotate())
         elif transform_name == 'color_jitter':
             augments.append(ColorJitter(
-                brightness=(0.9, 1.1),
-                contrast=(0.9, 1.1),
+                brightness=0.1,
+                contrast=0.1,
                 saturation=0,
                 hue=0,
             ))
