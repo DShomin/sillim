@@ -25,6 +25,7 @@ def test_dataloader():
     run('python -m imet.make_folds')
     folds = pd.read_csv('./folds.csv')
     print(folds)
+    print(folds)
 
 
 def test_augmentation():
