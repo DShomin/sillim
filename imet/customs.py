@@ -23,30 +23,29 @@ class FocalLoss(nn.Module):
 
 # https://www.kaggle.com/backaggle/imet-fastai-starter-focal-and-fbeta-loss#Create-learner-with-densenet121-and-FocalLoss
 class FbetaLoss(nn.Module):
-    def __init__(self, beta=1):
+    def __init__(self, beta=2):
         super(FbetaLoss, self).__init__()
         self.small_value = 1e-6
         self.beta = beta
 
     def forward(self, logits, labels):
-        beta = self.beta
         batch_size = logits.size()[0]
-        p = F.sigmoid(logits)
+        p = torch.sigmoid(logits)
         l = labels
         num_pos = torch.sum(p, 1) + self.small_value
         num_pos_hat = torch.sum(l, 1) + self.small_value
         tp = torch.sum(l * p, 1)
         precise = tp / num_pos
         recall = tp / num_pos_hat
-        fs = (1 + beta * beta) * precise * recall / (beta * beta * precise + recall + self.small_value)
+        fs = (1 + self.beta * self.beta) * precise * recall / (self.beta * self.beta * precise + recall + self.small_value)
         loss = fs.sum() / batch_size
-        return 1 - loss
+        return (1 - loss).expand(1)
 
 class CombineLoss(nn.Module):
-    def __init__(self):
+    def __init__(self, gamma=2, beta=2):
         super(CombineLoss, self).__init__()
-        self.fbeta_loss = FbetaLoss(beta=2)
-        self.focal_loss = FocalLoss()
+        self.fbeta_loss = FbetaLoss(beta=beta)
+        self.focal_loss = FocalLoss(gamma=gamma)
         
     def forward(self, logits, labels):
         loss_beta = self.fbeta_loss(logits, labels)

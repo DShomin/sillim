@@ -21,7 +21,7 @@ from .transforms import get_transform
 from .utils import (
     write_event, load_model, mean_df, ThreadingDataLoader as DataLoader,
     ON_KAGGLE)
-from .customs import FocalLoss
+from .customs import FocalLoss, FbetaLoss, CombineLoss
 
 
 def main():
@@ -41,7 +41,7 @@ def main():
     arg('--epoch-size', type=int)
     arg('--tta', type=int, default=4)
     arg('--use-sample', action='store_true', help='use a sample of the dataset')
-    arg('--focal_loss', action='store_true', help='use focal loss')
+    arg('--loss', type=str, default='BCE', help='select loss function')
     arg('--debug', action='store_true')
     arg('--limit', type=int)
     arg('--fold', type=int, default=0)
@@ -70,8 +70,12 @@ def main():
             batch_size=args.batch_size,
             num_workers=args.workers,
         )
-    if args.focal_loss:
+    if args.loss == "FOCAL":
         criterion = FocalLoss(gamma=2)
+    elif args.loss == "FBET":
+        criterion = FbetaLoss(beta=1)
+    elif args.loss == "COMBINE":
+        criterion = CombineLoss(gamma=2, beta=2)
     else:
         criterion = nn.BCEWithLogitsLoss(reduction='none')
     model = getattr(models, args.model)(
@@ -133,7 +137,7 @@ def main():
         )
         if args.mode == 'predict_valid':
             predict(model, df=valid_fold, root=train_root,
-                    out_path=run_root / 'val.h5',
+                    out_path=run_root / 'val.h5', args=args
                     **predict_kwargs)
         elif args.mode == 'predict_test':
             test_root = DATA_ROOT / (
@@ -146,11 +150,14 @@ def main():
             run_root.mkdir(exist_ok=True, parents=True)
             predict(model, df=ss, root=test_root,
                     out_path=run_root / 'test.h5',
+                    args = args,
                     **predict_kwargs)
 
 
 def predict(model, root: Path, df: pd.DataFrame, out_path: Path,
-            batch_size: int, tta: int, workers: int, use_cuda: bool):
+            batch_size: int, tta: int, workers: int, use_cuda: bool, args):
+    target_size = (args.size, args.size)
+    test_transform = get_transform(target_size, args.test_augments, args.augment_ratio)
     loader = DataLoader(
         dataset=TTADataset(root, df, test_transform, tta=tta),
         shuffle=False,

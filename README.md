@@ -36,7 +36,16 @@
 - train_augments(default: "random_crop, horizontal_flip): 아래에서 원하는 것을 넣거나 빼고 string으로 값을 줍니다.
 - test_augments(default: "random_crop, horizontal_flip): 아래에서 원하는 것을 넣거나 빼고 string으로 값을 줍니다.
     - "random_crop, keep_aspect, horizontal_flip, vertical_flip, random_rotate, color_jitter"
-    - ex: random crop과 horizontal flip만 원할 시 "random_crop, horizontal_flip"
+    - ex: trainig 시 random crop과 horizontal flip만 원할 시 --train_augments "random_crop, horizontal_flip"
+    - ex: test 시 random crop과 horizontal flip만 원할 시 --test_augments "random_crop, horizontal_flip"
+
 
 - size(default: 288): 입력 영상의 크기를 설정합니다.
 - augment_ratio(default: 0.5): augmentation이 적용되는 확률입니다.
+
+- loss(default: "BCE"): loss를 선택합니다.
+    - "BCE": binary cross entropy를 사용합니다.
+    - "FOCAL": focal loss를 사용합니다.
+    - "FBET": Fbet loss를 사용합니다.
+    - "COMBINE": focal과 fbet을 함께 사용합니다.
+    - ex: --loss COMBINE
