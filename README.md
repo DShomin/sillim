@@ -1,5 +1,8 @@
 # Sillim Kaggle Repo
 
+## IMet Hyper-prameters Information Google Link (Base Line)
+ - https://docs.google.com/spreadsheets/d/1ixBPEpVJpNaL1PupwG3GmdPpoDNk5qP9V976io2__AQ/edit?usp=sharing
+
 ## References
 
 - build script(https://github.com/lopuhin/kaggle-script-template)
