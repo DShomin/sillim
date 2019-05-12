@@ -133,14 +133,14 @@ class KeepAsepctResize:
 
 base_train_augments = [
     RandomHorizontalFlip(),
-    RandomVerticalFlip(),
-    RandomRotation((-50,50)),
-    RandomFunctional()
+    #RandomVerticalFlip(),
+    #RandomRotation((-50,50)),
+    #RandomFunctional()
 ]
 
 base_test_augments = [
     RandomHorizontalFlip(),
-    RandomRotation((-50,50))
+    #RandomRotation((-50,50))
 ]
 
 target_size = (288, 288)
@@ -164,3 +164,6 @@ tensor_transform = Compose([
     ToTensor(),
     Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
 ])
+
+def get_transform(mode='train', target_size=(288,288), augment_ratio=0.5):
+    pass
