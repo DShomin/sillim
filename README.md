@@ -2,6 +2,9 @@
 
 ## IMet Hyper-prameters Information Google Link (Base Line)
  - https://docs.google.com/spreadsheets/d/1ixBPEpVJpNaL1PupwG3GmdPpoDNk5qP9V976io2__AQ/edit?usp=sharing
+ 
+## Weight Model File Upload Link Google
+ - https://drive.google.com/drive/folders/1MU8nPdU55zXmp3TmR-xwam57EVtyc-rC?usp=sharing
 
 ## References
 
