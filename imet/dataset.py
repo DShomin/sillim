@@ -33,15 +33,15 @@ class TrainDataset(Dataset):
         image = load_transform_image(
             item, self._root, self._image_transform, debug=self._debug)
         target = torch.zeros(N_CLASSES)
-        if self.smoothing:
-            eps = 0.1
+        if self.smoothing == -1.0:
+            for cls in item.attribute_ids.split():
+                target[int(cls)] = 1
+            
+        else:
+            eps = 0.05
             target += eps / (N_CLASSES - 1)
             for cls in item.attribute_ids.split():
                 target[int(cls)] = 1 - eps
-        else:
-            for cls in item.attribute_ids.split():
-                target[int(cls)] = 1
-
         return image, target
 
 

@@ -45,7 +45,7 @@ def main():
     arg('--debug', action='store_true')
     arg('--limit', type=int)
     arg('--fold', type=int, default=0)
-    arg('--smoothing', type=bool, default=False)
+    arg('--smoothing', type=float, default=-1.0)
     args = parser.parse_args()
 
     run_root = Path(args.run_root)
@@ -62,6 +62,13 @@ def main():
     def make_loader(df: pd.DataFrame, image_transform) -> DataLoader:
         return DataLoader(
             TrainDataset(train_root, df, image_transform, debug=args.debug, smoothing=args.smoothing),
+            shuffle=True,
+            batch_size=args.batch_size,
+            num_workers=args.workers,
+        )
+    def make_v_loader(df: pd.DataFrame, image_transform) -> DataLoader:
+        return DataLoader(
+            TrainDataset(train_root, df, image_transform, debug=args.debug, smoothing=-1.0),
             shuffle=True,
             batch_size=args.batch_size,
             num_workers=args.workers,
@@ -86,7 +93,7 @@ def main():
             json.dumps(vars(args), indent=4, sort_keys=True))
 
         train_loader = make_loader(train_fold, train_transform)
-        valid_loader = make_loader(valid_fold, test_transform)
+        valid_loader = make_v_loader(valid_fold, test_transform)
         print('{:,} items in train, '.format(len(train_loader.dataset)),
               '{:,} in valid'.format(len(valid_loader.dataset)))
 
@@ -108,7 +115,7 @@ def main():
             train(params=all_params, **train_kwargs)
 
     elif args.mode == 'validate':
-        valid_loader = make_loader(valid_fold, test_transform)
+        valid_loader = make_v_loader(valid_fold, test_transform)
         load_model(model, run_root / 'model.pt')
         validation(model, criterion, tqdm.tqdm(valid_loader, desc='Validation'),
                    use_cuda=use_cuda)
@@ -270,9 +277,10 @@ def validation(
                 inputs, targets = inputs.cuda(), targets.cuda()
             outputs = model(inputs)
             if args.focal_loss:
-                loss = _reduce_loss(loss).item()
+                loss = criterion(outputs, targets)
             else:
                 loss = criterion(outputs, targets)
+                loss = _reduce_loss(loss).item()
 
             all_losses.append(loss)
             predictions = torch.sigmoid(outputs)
