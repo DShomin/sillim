@@ -22,6 +22,7 @@ from .utils import (
     write_event, load_model, mean_df, ThreadingDataLoader as DataLoader,
     ON_KAGGLE)
 from .customs import FocalLoss, FbetaLoss, CombineLoss
+from torch.autograd import Variable 
 
 
 def main():
@@ -50,6 +51,7 @@ def main():
     arg('--test_augments', default='random_crop, horizontal_flip', type=str)
     arg('--size', default=288, type=int)
     arg('--augment_ratio', default=0.5, type=float)
+    arg('--mixup_loss', default=False, type=bool)
     args = parser.parse_args()
 
     run_root = Path(args.run_root)
@@ -231,8 +233,16 @@ def train(args, model: nn.Module, criterion, *, params,
             for i, (inputs, targets) in enumerate(tl):
                 if use_cuda:
                     inputs, targets = inputs.cuda(), targets.cuda()
-                outputs = model(inputs)
-                loss = _reduce_loss(criterion(outputs, targets))
+                if args.mixup_loss:
+                    inputs, targets_a, targets_b, lam = mixup_data(inputs, targets, alpha=0.4, use_cuda = use_cuda)
+                    inputs, targets_a, targets_b = map(Variable, (inputs, targets_a, targets_b))
+                    outputs = model(inputs)
+                    loss = mixup_criterion(criterion, outputs.cuda(), targets_a.cuda(), targets_b.cuda(), lam)
+                    loss = _reduce_loss(loss)
+                else:
+                    outputs = model(inputs)
+                    loss = _reduce_loss(criterion(outputs, targets))
+                
 
                 batch_size = inputs.size(0)
                 (batch_size * loss).backward()
@@ -274,7 +284,26 @@ def train(args, model: nn.Module, criterion, *, params,
             print('done.')
             return False
     return True
+def mixup_data(x, y, alpha=1.0, use_cuda=True):
+    '''Returns mixed inputs, pairs of targets, and lambda'''
+    if alpha > 0:
+        lam = np.random.beta(alpha, alpha)
+    else:
+        lam = 1
 
+    batch_size = x.size()[0]
+    if use_cuda:
+        index = torch.randperm(batch_size).cuda()
+    else:
+        index = torch.randperm(batch_size)
+
+    mixed_x = lam * x + (1 - lam) * x[index, :]
+    y_a, y_b = y, y[index]
+    return mixed_x, y_a, y_b, lam
+
+
+def mixup_criterion(criterion, pred, y_a, y_b, lam):
+    return lam * criterion(pred, y_a) + (1 - lam) * criterion(pred, y_b)
 
 def validation(
         model: nn.Module, criterion, valid_loader, use_cuda, args
