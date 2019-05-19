@@ -17,11 +17,11 @@ import tqdm
 
 from . import models
 from .dataset import TrainDataset, TTADataset, get_ids, N_CLASSES, DATA_ROOT
-from .transforms import train_transform, test_transform
+from .transforms import get_transform
 from .utils import (
     write_event, load_model, mean_df, ThreadingDataLoader as DataLoader,
     ON_KAGGLE)
-from .customs import FocalLoss
+from .customs import FocalLoss, FbetaLoss, CombineLoss
 
 
 def main():
@@ -41,11 +41,16 @@ def main():
     arg('--epoch-size', type=int)
     arg('--tta', type=int, default=4)
     arg('--use-sample', action='store_true', help='use a sample of the dataset')
-    arg('--focal_loss', action='store_true', help='use focal loss')
+    arg('--loss', type=str, default='BCE', help='select loss function')
     arg('--debug', action='store_true')
     arg('--limit', type=int)
     arg('--fold', type=int, default=0)
     arg('--smoothing', type=float, default=-1.0)
+    arg('--model_path', type=str)
+    arg('--train_augments', default='random_crop, horizontal_flip', type=str)
+    arg('--test_augments', default='random_crop, horizontal_flip', type=str)
+    arg('--size', default=288, type=int)
+    arg('--augment_ratio', default=0.5, type=float)
     args = parser.parse_args()
 
     run_root = Path(args.run_root)
@@ -73,8 +78,12 @@ def main():
             batch_size=args.batch_size,
             num_workers=args.workers,
         )
-    if args.focal_loss:
+    if args.loss == "FOCAL":
         criterion = FocalLoss(gamma=2)
+    elif args.loss == "FBET":
+        criterion = FbetaLoss(beta=1)
+    elif args.loss == "COMBINE":
+        criterion = CombineLoss(gamma=2, beta=2)
     else:
         criterion = nn.BCEWithLogitsLoss(reduction='none')
     model = getattr(models, args.model)(
@@ -84,6 +93,9 @@ def main():
     all_params = list(model.parameters())
     if use_cuda:
         model = model.cuda()
+    target_size = (args.size, args.size)
+    train_transform = get_transform(target_size, args.train_augments, args.augment_ratio)
+    test_transform = get_transform(target_size, args.test_augments, args.augment_ratio)
 
     if args.mode == 'train':
         if run_root.exists() and args.clean:
@@ -121,7 +133,10 @@ def main():
                    use_cuda=use_cuda)
 
     elif args.mode.startswith('predict'):
-        load_model(model, run_root / 'best-model.pt')
+        if args.model_path is None:
+            load_model(model, run_root / 'best-model.pt')
+        else:
+            load_model(model, args.model_path)
         predict_kwargs = dict(
             batch_size=args.batch_size,
             tta=args.tta,
@@ -130,7 +145,7 @@ def main():
         )
         if args.mode == 'predict_valid':
             predict(model, df=valid_fold, root=train_root,
-                    out_path=run_root / 'val.h5',
+                    out_path=run_root / 'val.h5', args=args
                     **predict_kwargs)
         elif args.mode == 'predict_test':
             test_root = DATA_ROOT / (
@@ -140,13 +155,17 @@ def main():
                 ss = ss[ss['id'].isin(set(get_ids(test_root)))]
             if args.limit:
                 ss = ss[:args.limit]
+            run_root.mkdir(exist_ok=True, parents=True)
             predict(model, df=ss, root=test_root,
                     out_path=run_root / 'test.h5',
+                    args = args,
                     **predict_kwargs)
 
 
 def predict(model, root: Path, df: pd.DataFrame, out_path: Path,
-            batch_size: int, tta: int, workers: int, use_cuda: bool):
+            batch_size: int, tta: int, workers: int, use_cuda: bool, args):
+    target_size = (args.size, args.size)
+    test_transform = get_transform(target_size, args.test_augments, args.augment_ratio)
     loader = DataLoader(
         dataset=TTADataset(root, df, test_transform, tta=tta),
         shuffle=False,
@@ -215,14 +234,13 @@ def train(args, model: nn.Module, criterion, *, params,
             tl = islice(tl, args.epoch_size // args.batch_size)
         try:
             mean_loss = 0
+            # for debug
+            #valid_metrics = validation(model, criterion, valid_loader, use_cuda, args)
             for i, (inputs, targets) in enumerate(tl):
                 if use_cuda:
                     inputs, targets = inputs.cuda(), targets.cuda()
                 outputs = model(inputs)
-                if args.focal_loss:
-                    loss = criterion(outputs, targets)
-                else:
-                    loss = _reduce_loss(criterion(outputs, targets))
+                loss = _reduce_loss(criterion(outputs, targets))
 
                 batch_size = inputs.size(0)
                 (batch_size * loss).backward()
@@ -239,6 +257,7 @@ def train(args, model: nn.Module, criterion, *, params,
             write_event(log, step, loss=mean_loss)
             tq.close()
             save(epoch + 1)
+            print(epoch)
             valid_metrics = validation(model, criterion, valid_loader, use_cuda, args)
             write_event(log, step, **valid_metrics)
             valid_loss = valid_metrics['valid_loss']
