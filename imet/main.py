@@ -122,7 +122,7 @@ def main():
             train(params=all_params, **train_kwargs)
 
     elif args.mode == 'validate':
-        valid_loader = make_v_loader(valid_fold, test_transform)
+        valid_loader = make_loader(valid_fold, test_transform)
         load_model(model, run_root / 'model.pt')
         validation(model, criterion, tqdm.tqdm(valid_loader, desc='Validation'),
                    use_cuda=use_cuda)
