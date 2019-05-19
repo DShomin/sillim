@@ -64,16 +64,9 @@ def main():
         train_fold = train_fold[:args.limit]
         valid_fold = valid_fold[:args.limit]
 
-    def make_loader(df: pd.DataFrame, image_transform) -> DataLoader:
+    def make_loader(df: pd.DataFrame, image_transform, smoothing=-1.0) -> DataLoader:
         return DataLoader(
-            TrainDataset(train_root, df, image_transform, debug=args.debug, smoothing=args.smoothing),
-            shuffle=True,
-            batch_size=args.batch_size,
-            num_workers=args.workers,
-        )
-    def make_v_loader(df: pd.DataFrame, image_transform) -> DataLoader:
-        return DataLoader(
-            TrainDataset(train_root, df, image_transform, debug=args.debug, smoothing=-1.0),
+            TrainDataset(train_root, df, image_transform, debug=args.debug, smoothing=smoothing),
             shuffle=True,
             batch_size=args.batch_size,
             num_workers=args.workers,
@@ -104,8 +97,8 @@ def main():
         (run_root / 'params.json').write_text(
             json.dumps(vars(args), indent=4, sort_keys=True))
 
-        train_loader = make_loader(train_fold, train_transform)
-        valid_loader = make_v_loader(valid_fold, test_transform)
+        train_loader = make_loader(train_fold, train_transform, smoothing=args.smoothing)
+        valid_loader = make_loader(valid_fold, test_transform)
         print('{:,} items in train, '.format(len(train_loader.dataset)),
               '{:,} in valid'.format(len(valid_loader.dataset)))
 
