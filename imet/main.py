@@ -21,7 +21,7 @@ from .transforms import get_transform
 from .utils import (
     write_event, load_model, mean_df, ThreadingDataLoader as DataLoader,
     ON_KAGGLE)
-from .customs import FocalLoss, FbetaLoss, CombineLoss
+from .customs import FocalLoss, FbetaLoss, CombineLoss, mixup_data, mixup_criterion
 from torch.autograd import Variable 
 
 
@@ -284,26 +284,7 @@ def train(args, model: nn.Module, criterion, *, params,
             print('done.')
             return False
     return True
-def mixup_data(x, y, alpha=1.0, use_cuda=True):
-    '''Returns mixed inputs, pairs of targets, and lambda'''
-    if alpha > 0:
-        lam = np.random.beta(alpha, alpha)
-    else:
-        lam = 1
 
-    batch_size = x.size()[0]
-    if use_cuda:
-        index = torch.randperm(batch_size).cuda()
-    else:
-        index = torch.randperm(batch_size)
-
-    mixed_x = lam * x + (1 - lam) * x[index, :]
-    y_a, y_b = y, y[index]
-    return mixed_x, y_a, y_b, lam
-
-
-def mixup_criterion(criterion, pred, y_a, y_b, lam):
-    return lam * criterion(pred, y_a) + (1 - lam) * criterion(pred, y_b)
 
 def validation(
         model: nn.Module, criterion, valid_loader, use_cuda, args
