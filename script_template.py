@@ -21,6 +21,6 @@ def run(command):
 
 run('python setup.py develop --install-dir /kaggle/working')
 run('python -m imet.make_folds')
-run('python -m imet.main train model_1 --n-epochs 25 --focal_loss')
+run('python -m imet.main train model_1 --n-epochs 1 --loss BCE --model_path "../backup/resnet_50/20190421_resnet50_ksk_0.598.pt"')
 run('python -m imet.main predict_test model_1')
 run('python -m imet.make_submission model_1/test.h5 submission.csv --threshold 0.1')

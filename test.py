@@ -5,7 +5,7 @@ import os
 
 from pathlib import Path
 from imet.dataset import TrainDataset, TTADataset, get_ids, N_CLASSES, DATA_ROOT
-from imet.transforms import train_transform, test_transform, tensor_transform
+from imet.transforms import get_transform
 from torchvision import transforms
 from imet.utils import ( ThreadingDataLoader as DataLoader)
 from PIL import Image
@@ -31,6 +31,9 @@ def test_augmentation():
     folds = pd.read_csv('./folds.csv')
     train_root = Path('./data/train')
     output_dir = Path('./output')
+    train_transform = get_transform(
+        transform_list='keep_aspect, horizontal_flip, random_rotate',
+    )
     
     def make_loader(df: pd.DataFrame, image_transform) -> DataLoader:
         return DataLoader(

@@ -191,9 +191,15 @@ def train(args, model: nn.Module, criterion, *, params,
     optimizer = init_optimizer(params, lr)
 
     run_root = Path(args.run_root)
-    model_path = run_root / 'model.pt'
-    best_model_path = run_root / 'best-model.pt'
-    if model_path.exists():
+    print(args.model_path)
+    if args.model_path is None:
+        model_path = run_root / 'model.pt'
+        best_model_path = run_root / 'best-model.pt'
+    else:
+        model_path = Path(args.model_path)
+        best_model_path = Path(args.model_path)
+
+    if model_path.exists(): # load model
         state = load_model(model, model_path)
         epoch = state['epoch']
         step = state['step']
@@ -202,6 +208,10 @@ def train(args, model: nn.Module, criterion, *, params,
         epoch = 1
         step = 0
         best_valid_loss = float('inf')
+    
+    # reset model path after load
+    model_path = run_root / 'model.pt'
+    best_model_path = run_root / 'best-model.pt'
     lr_changes = 0
 
     save = lambda ep: torch.save({
