@@ -49,3 +49,10 @@
     - "FBET": Fbet loss를 사용합니다.
     - "COMBINE": focal과 fbet을 함께 사용합니다.
     - ex: --loss COMBINE
+ - label_smoothing : eps [0, 1]
+    - 참고 논문 : Bag of Tricks for Image Classification with Convolutional Neural Networks
+    - 설명 문단 : 5.2
+    - https://arxiv.org/pdf/1812.01187.pdf
+ - mixup data & mixup loss : True False (alpha 0.4)
+    - 참고 논문 : mixup: Beyond Empirical Risk Minimization
+    - https://arxiv.org/abs/1710.09412
