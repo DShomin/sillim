@@ -53,6 +53,7 @@ def main():
     arg('--size', default=288, type=int)
     arg('--augment_ratio', default=0.5, type=float)
     arg('--mixup_loss', default=False, type=bool)
+    arg('--decay', type=str)
     args = parser.parse_args()
 
     run_root = Path(args.run_root)
@@ -271,7 +272,6 @@ def train(args, model: nn.Module, criterion, *, params,
             write_event(log, step, loss=mean_loss)
             tq.close()
             save(epoch + 1)
-            print(epoch)
             valid_metrics = validation(model, criterion, valid_loader, use_cuda, args)
             write_event(log, step, **valid_metrics)
             valid_loss = valid_metrics['valid_loss']
@@ -286,7 +286,7 @@ def train(args, model: nn.Module, criterion, *, params,
                 if lr_changes > max_lr_changes:
                     break
                 lr /= 5
-                print('lr updated to {lr}'.format(lr=lr))
+                    print('lr updated to {lr}'.format(lr=lr))
                 lr_reset_epoch = epoch
                 optimizer = init_optimizer(params, lr)
         except KeyboardInterrupt:
@@ -309,11 +309,9 @@ def validation(
             if use_cuda:
                 inputs, targets = inputs.cuda(), targets.cuda()
             outputs = model(inputs)
-            if args.focal_loss:
-                loss = criterion(outputs, targets)
-            else:
-                loss = criterion(outputs, targets)
-                loss = _reduce_loss(loss).item()
+
+            loss = criterion(outputs, targets)
+            loss = _reduce_loss(loss).item()
 
             all_losses.append(loss)
             predictions = torch.sigmoid(outputs)
