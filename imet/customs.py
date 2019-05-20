@@ -2,6 +2,7 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 from torch.autograd import Variable
+import numpy as np
 
 # Source: https://www.kaggle.com/c/human-protein-atlas-image-classification/discussion/78109
 class FocalLoss(nn.Module):
