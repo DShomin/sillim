@@ -23,7 +23,7 @@ from .utils import (
     ON_KAGGLE)
 from .customs import FocalLoss, FbetaLoss, CombineLoss, mixup_data, mixup_criterion
 from torch.autograd import Variable 
-
+from torch.optim.lr_scheduler import StepLR, CosineAnnealingLR
 
 def main():
     parser = argparse.ArgumentParser()
@@ -54,6 +54,7 @@ def main():
     arg('--augment_ratio', default=0.5, type=float)
     arg('--mixup_loss', default=False, type=bool)
     arg('--decay', type=str)
+    arg('--scheduler', default='', type=str)
     args = parser.parse_args()
 
     run_root = Path(args.run_root)
@@ -124,7 +125,10 @@ def main():
 
     elif args.mode == 'validate':
         valid_loader = make_v_loader(valid_fold, test_transform)
-        load_model(model, run_root / 'model.pt')
+        if args.model_path is None:
+            load_model(model, run_root / 'best-model.pt')
+        else:
+            state = load_model(model, args.model_path)
         validation(model, criterion, tqdm.tqdm(valid_loader, desc='Validation'),
                    use_cuda=use_cuda)
 
@@ -132,7 +136,7 @@ def main():
         if args.model_path is None:
             load_model(model, run_root / 'best-model.pt')
         else:
-            load_model(model, args.model_path)
+            state = load_model(model, args.model_path)
         predict_kwargs = dict(
             batch_size=args.batch_size,
             tta=args.tta,
@@ -193,9 +197,8 @@ def train(args, model: nn.Module, criterion, *, params,
     n_epochs = n_epochs or args.n_epochs
     params = list(params)
     optimizer = init_optimizer(params, lr)
-
+    
     run_root = Path(args.run_root)
-    print(args.model_path)
     if args.model_path is None:
         model_path = run_root / 'model.pt'
         best_model_path = run_root / 'best-model.pt'
@@ -208,12 +211,18 @@ def train(args, model: nn.Module, criterion, *, params,
         state = load_model(model, model_path)
         epoch = state['epoch']
         step = state['step']
+        lr = state['lr']
         best_valid_loss = state['best_valid_loss']
     else:
         epoch = 1
         step = 0
         best_valid_loss = float('inf')
     
+    if args.scheduler == 'cosine':
+        scheduler = CosineAnnealingLR(optimizer, T_max=n_epochs)
+    else:
+        scheduler = StepLR(optimizer, step_size=2, gamma=0.1)
+
     # reset model path after load
     model_path = run_root / 'model.pt'
     best_model_path = run_root / 'best-model.pt'
@@ -223,7 +232,8 @@ def train(args, model: nn.Module, criterion, *, params,
         'model': model.state_dict(),
         'epoch': ep,
         'step': step,
-        'best_valid_loss': best_valid_loss
+        'best_valid_loss': best_valid_loss,
+        'lr': scheduler.get_lr()
     }, str(model_path))
 
     report_each = 10
@@ -234,7 +244,7 @@ def train(args, model: nn.Module, criterion, *, params,
         model.train()
         tq = tqdm.tqdm(total=(args.epoch_size or
                               len(train_loader) * args.batch_size))
-        tq.set_description('Epoch {}, lr {}'.format(epoch, lr))
+        tq.set_description('Epoch {}, lr {}'.format(epoch, scheduler.get_lr()))
         losses = []
         tl = train_loader
         if args.epoch_size:
@@ -260,7 +270,7 @@ def train(args, model: nn.Module, criterion, *, params,
                 batch_size = inputs.size(0)
                 (batch_size * loss).backward()
                 if (i + 1) % args.step == 0:
-                    optimizer.step()
+                    #optimizer.step()
                     optimizer.zero_grad()
                     step += 1
                 tq.update(batch_size)
@@ -276,19 +286,21 @@ def train(args, model: nn.Module, criterion, *, params,
             write_event(log, step, **valid_metrics)
             valid_loss = valid_metrics['valid_loss']
             valid_losses.append(valid_loss)
+
             if valid_loss < best_valid_loss:
                 best_valid_loss = valid_loss
                 shutil.copy(str(model_path), str(best_model_path))
             elif (patience and epoch - lr_reset_epoch > patience and
                   min(valid_losses[-patience:]) > best_valid_loss):
                 # "patience" epochs without improvement
-                lr_changes +=1
-                if lr_changes > max_lr_changes:
-                    break
-                lr /= 5
-                    print('lr updated to {lr}'.format(lr=lr))
+                # lr_changes +=1
+                # if lr_changes > max_lr_changes:
+                #     break
+                #lr /= 5
+                scheduler.step()
+                print('lr updated to {lr}'.format(lr=scheduler.get_lr()))
                 lr_reset_epoch = epoch
-                optimizer = init_optimizer(params, lr)
+                #optimizer = init_optimizer(params, lr)
         except KeyboardInterrupt:
             tq.close()
             print('Ctrl+C, saving snapshot')
