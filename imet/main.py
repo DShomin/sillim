@@ -14,7 +14,6 @@ import torch
 from torch import nn, cuda
 from torch.optim import Adam
 import tqdm
-
 from . import models
 from .dataset import TrainDataset, TTADataset, get_ids, N_CLASSES, DATA_ROOT
 from .transforms import get_transform
@@ -24,6 +23,9 @@ from .utils import (
 from .customs import FocalLoss, FbetaLoss, CombineLoss, mixup_data, mixup_criterion, CombineLoss2
 from torch.autograd import Variable 
 from torch.optim.lr_scheduler import StepLR, CosineAnnealingLR
+
+if not ON_KAGGLE:
+    from torch.utils.tensorboard import SummaryWriter
 
 def main():
     parser = argparse.ArgumentParser()
@@ -35,7 +37,7 @@ def main():
     arg('--batch-size', type=int, default=64)
     arg('--step', type=int, default=1)
     arg('--workers', type=int, default=2 if ON_KAGGLE else 4)
-    arg('--lr', type=float, default=1e-4)
+    arg('--lr', type=float, default=1e-3)
     arg('--patience', type=int, default=4)
     arg('--clean', action='store_true')
     arg('--n-epochs', type=int, default=100)
@@ -199,8 +201,10 @@ def train(args, model: nn.Module, criterion, *, params,
     n_epochs = n_epochs or args.n_epochs
     params = list(params)
     optimizer = init_optimizer(params, lr)
-    
+
     run_root = Path(args.run_root)
+    if not ON_KAGGLE:
+        writer = SummaryWriter(log_dir=run_root / 'tensorboard')
     if args.model_path is None:
         model_path = run_root / 'model.pt'
         best_model_path = run_root / 'best-model.pt'
@@ -214,14 +218,16 @@ def train(args, model: nn.Module, criterion, *, params,
         epoch = state['epoch']
         step = state['step']
         lr = state['lr']
+        best_valid_scores = state['best_valid_scores']
         best_valid_loss = state['best_valid_loss']
     else:
         epoch = 1
         step = 0
+        best_valid_scores = 0
         best_valid_loss = float('inf')
     
     if args.scheduler == 'cosine':
-        scheduler = CosineAnnealingLR(optimizer, T_max=n_epochs)
+        scheduler = CosineAnnealingLR(optimizer, T_max=len(train_loader))
     else:
         scheduler = StepLR(optimizer, step_size=2, gamma=0.1)
 
@@ -234,8 +240,9 @@ def train(args, model: nn.Module, criterion, *, params,
         'model': model.state_dict(),
         'epoch': ep,
         'step': step,
+        'best_valid_scores': best_valid_scores,
         'best_valid_loss': best_valid_loss,
-        'lr': scheduler.get_lr()
+        'lr': lr
     }, str(model_path))
 
     report_each = 10
@@ -272,10 +279,14 @@ def train(args, model: nn.Module, criterion, *, params,
                 batch_size = inputs.size(0)
                 (batch_size * loss).backward()
                 if (i + 1) % args.step == 0:
-                    #optimizer.step()
+                    optimizer.step()
                     optimizer.zero_grad()
+                    scheduler.step()
                     step += 1
                 tq.update(batch_size)
+                if not ON_KAGGLE:
+                    writer.add_scalar('loss', loss.item(), global_step=step)
+                    writer.add_scalar('lr', scheduler.get_lr()[0], global_step=step)
                 losses.append(loss.item())
                 mean_loss = np.mean(losses[-report_each:])
                 tq.set_postfix(loss='{:.3f}'.format(mean_loss))
@@ -287,22 +298,41 @@ def train(args, model: nn.Module, criterion, *, params,
             valid_metrics = validation(model, criterion, valid_loader, use_cuda, args)
             write_event(log, step, **valid_metrics)
             valid_loss = valid_metrics['valid_loss']
-            valid_losses.append(valid_loss)
 
+            # valid_scores
+            valid_scores = max([v for k, v in valid_metrics.items() if k != 'valid_loss'])
+            valid_losses.append(valid_loss)
+            if not ON_KAGGLE:
+                writer.add_scalar('lr', scheduler.get_lr()[0], global_step=epoch)
+                writer.add_scalar('valid_loss', valid_loss, global_step=epoch)
+                writer.add_scalar('valid_score', valid_scores, global_step=epoch)
+                writer.add_scalar('best_valid_score', best_valid_scores, global_step=epoch)
+                writer.add_scalar('best_valid_loss', best_valid_loss, global_step=epoch)
+            
             if valid_loss < best_valid_loss:
                 best_valid_loss = valid_loss
+
+            if valid_scores > best_valid_scores:
+                best_valid_scores = valid_scores
                 shutil.copy(str(model_path), str(best_model_path))
+                text='Save bestmodel at epoch:{epoch}'.format(epoch=epoch)
+                print(text)
+                write_event(log, step, **valid_metrics, message=text)
             elif (patience and epoch - lr_reset_epoch > patience and
                   min(valid_losses[-patience:]) > best_valid_loss):
                 # "patience" epochs without improvement
-                # lr_changes +=1
-                # if lr_changes > max_lr_changes:
-                #     break
-                #lr /= 5
-                scheduler.step()
-                print('lr updated to {lr}'.format(lr=scheduler.get_lr()))
+                lr_changes +=1
+                if lr_changes > max_lr_changes:
+                    break
+                lr /= 5
+                print('lr updated to {lr}'.format(lr=lr))
                 lr_reset_epoch = epoch
-                #optimizer = init_optimizer(params, lr)
+
+            optimizer = init_optimizer(params, lr)
+            if args.scheduler == 'cosine':
+                scheduler = CosineAnnealingLR(optimizer, T_max=len(train_loader))
+            else:
+                scheduler = StepLR(optimizer, step_size=2, gamma=0.1)
         except KeyboardInterrupt:
             tq.close()
             print('Ctrl+C, saving snapshot')

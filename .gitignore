@@ -121,3 +121,4 @@ output/*
 folds.csv
 *.pt
 *.json
+events*
