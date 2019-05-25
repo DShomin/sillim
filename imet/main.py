@@ -21,7 +21,7 @@ from .transforms import get_transform
 from .utils import (
     write_event, load_model, mean_df, ThreadingDataLoader as DataLoader,
     ON_KAGGLE)
-from .customs import FocalLoss, FbetaLoss, CombineLoss, mixup_data, mixup_criterion
+from .customs import FocalLoss, FbetaLoss, CombineLoss, mixup_data, mixup_criterion, CombineLoss2
 from torch.autograd import Variable 
 from torch.optim.lr_scheduler import StepLR, CosineAnnealingLR
 
@@ -81,6 +81,8 @@ def main():
         criterion = FbetaLoss(beta=1)
     elif args.loss == "COMBINE":
         criterion = CombineLoss(gamma=2, beta=2)
+    elif args.loss == "COMBINE2":
+        criterion = CombineLoss2(beta=1)
     else:
         criterion = nn.BCEWithLogitsLoss(reduction='none')
     model = getattr(models, args.model)(
@@ -124,11 +126,11 @@ def main():
             train(params=all_params, **train_kwargs)
 
     elif args.mode == 'validate':
-        valid_loader = make_v_loader(valid_fold, test_transform)
+        valid_loader = make_loader(valid_fold, test_transform)
         if args.model_path is None:
             load_model(model, run_root / 'best-model.pt')
         else:
-            state = load_model(model, args.model_path)
+            load_model(model, args.model_path)
         validation(model, criterion, tqdm.tqdm(valid_loader, desc='Validation'),
                    use_cuda=use_cuda)
 

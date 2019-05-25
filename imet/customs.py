@@ -53,6 +53,17 @@ class CombineLoss(nn.Module):
         loss_focal = self.focal_loss(logits, labels)
         return 0.5 * loss_beta + 0.5 * loss_focal
 
+class CombineLoss2(nn.Module):
+    def __init__(self, beta=2):
+        super(CombineLoss2, self).__init__()
+        self.bce_loss = nn.BCEWithLogitsLoss(reduction='none')
+        self.fbeta_loss = FbetaLoss(beta=beta)
+        
+    def forward(self, logits, labels):
+        loss_bce = self.bce_loss(logits, labels)
+        loss_beta = self.fbeta_loss(logits, labels)
+        return 0.9 * loss_bce + 0.1 * loss_beta
+
 def mixup_data(x, y, alpha=1.0, use_cuda=True):
     '''Returns mixed inputs, pairs of targets, and lambda'''
     if alpha > 0:
