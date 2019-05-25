@@ -21,7 +21,7 @@ from .transforms import get_transform
 from .utils import (
     write_event, load_model, mean_df, ThreadingDataLoader as DataLoader,
     ON_KAGGLE)
-from .customs import FocalLoss, FbetaLoss, CombineLoss, mixup_data, mixup_criterion
+from .customs import FocalLoss, FbetaLoss, CombineLoss, mixup_data, mixup_criterion, CombineLoss2
 from torch.autograd import Variable 
 
 
@@ -79,6 +79,8 @@ def main():
         criterion = FbetaLoss(beta=1)
     elif args.loss == "COMBINE":
         criterion = CombineLoss(gamma=2, beta=2)
+    elif args.loss == "COMBINE2":
+        criterion = CombineLoss2(beta=1)
     else:
         criterion = nn.BCEWithLogitsLoss(reduction='none')
     model = getattr(models, args.model)(
@@ -123,7 +125,10 @@ def main():
 
     elif args.mode == 'validate':
         valid_loader = make_loader(valid_fold, test_transform)
-        load_model(model, run_root / 'model.pt')
+        if args.model_path is None:
+            load_model(model, run_root / 'best-model.pt')
+        else:
+            load_model(model, args.model_path)
         validation(model, criterion, tqdm.tqdm(valid_loader, desc='Validation'),
                    use_cuda=use_cuda)
 
@@ -207,6 +212,7 @@ def train(args, model: nn.Module, criterion, *, params,
         state = load_model(model, model_path)
         epoch = state['epoch']
         step = state['step']
+        lr = state['lr']
         best_valid_loss = state['best_valid_loss']
     else:
         epoch = 1
@@ -222,7 +228,8 @@ def train(args, model: nn.Module, criterion, *, params,
         'model': model.state_dict(),
         'epoch': ep,
         'step': step,
-        'best_valid_loss': best_valid_loss
+        'best_valid_loss': best_valid_loss,
+        'lr': lr
     }, str(model_path))
 
     report_each = 10
