@@ -200,7 +200,6 @@ def train(args, model: nn.Module, criterion, *, params,
     lr = args.lr
     n_epochs = n_epochs or args.n_epochs
     params = list(params)
-    optimizer = init_optimizer(params, lr)
 
     run_root = Path(args.run_root)
     if not ON_KAGGLE:
@@ -226,10 +225,12 @@ def train(args, model: nn.Module, criterion, *, params,
         best_valid_scores = 0
         best_valid_loss = float('inf')
     
+    # init optimizer and scheduler
+    optimizer = init_optimizer(params, lr)
     if args.scheduler == 'cosine':
         scheduler = CosineAnnealingLR(optimizer, T_max=len(train_loader))
     else:
-        scheduler = StepLR(optimizer, step_size=2, gamma=0.1)
+        scheduler = StepLR(optimizer, step_size=2, gamma=0.8)
 
     # reset model path after load
     model_path = run_root / 'model.pt'
@@ -281,7 +282,8 @@ def train(args, model: nn.Module, criterion, *, params,
                 if (i + 1) % args.step == 0:
                     optimizer.step()
                     optimizer.zero_grad()
-                    scheduler.step()
+                    if args.scheduler == 'cosine':
+                        scheduler.step()
                     step += 1
                 tq.update(batch_size)
                 if not ON_KAGGLE:
@@ -298,26 +300,21 @@ def train(args, model: nn.Module, criterion, *, params,
             valid_metrics = validation(model, criterion, valid_loader, use_cuda, args)
             write_event(log, step, **valid_metrics)
             valid_loss = valid_metrics['valid_loss']
-
+            
             # valid_scores
             valid_scores = max([v for k, v in valid_metrics.items() if k != 'valid_loss'])
             valid_losses.append(valid_loss)
             if not ON_KAGGLE:
-                writer.add_scalar('lr', scheduler.get_lr()[0], global_step=epoch)
+                #writer.add_scalar('lr', scheduler.get_lr()[0], global_step=epoch)
                 writer.add_scalar('valid_loss', valid_loss, global_step=epoch)
                 writer.add_scalar('valid_score', valid_scores, global_step=epoch)
                 writer.add_scalar('best_valid_score', best_valid_scores, global_step=epoch)
                 writer.add_scalar('best_valid_loss', best_valid_loss, global_step=epoch)
-            
+            if not args.scheduler == 'cosine':
+                scheduler.step()
+
             if valid_loss < best_valid_loss:
                 best_valid_loss = valid_loss
-
-            if valid_scores > best_valid_scores:
-                best_valid_scores = valid_scores
-                shutil.copy(str(model_path), str(best_model_path))
-                text='Save bestmodel at epoch:{epoch}'.format(epoch=epoch)
-                print(text)
-                write_event(log, step, **valid_metrics, message=text)
             elif (patience and epoch - lr_reset_epoch > patience and
                   min(valid_losses[-patience:]) > best_valid_loss):
                 # "patience" epochs without improvement
@@ -327,12 +324,21 @@ def train(args, model: nn.Module, criterion, *, params,
                 lr /= 5
                 print('lr updated to {lr}'.format(lr=lr))
                 lr_reset_epoch = epoch
+                
+                # init optimizer and scheduler
+                optimizer = init_optimizer(params, lr)
+                if args.scheduler == 'cosine':
+                    scheduler = CosineAnnealingLR(optimizer, T_max=len(train_loader))
+                else:
+                    scheduler = StepLR(optimizer, step_size=2, gamma=0.8)
 
-            optimizer = init_optimizer(params, lr)
-            if args.scheduler == 'cosine':
-                scheduler = CosineAnnealingLR(optimizer, T_max=len(train_loader))
-            else:
-                scheduler = StepLR(optimizer, step_size=2, gamma=0.1)
+            if valid_scores > best_valid_scores:
+                best_valid_scores = valid_scores
+                shutil.copy(str(model_path), str(best_model_path))
+                text='Save bestmodel at epoch:{epoch}'.format(epoch=epoch)
+                print(text)
+                write_event(log, step, **valid_metrics, message=text)
+
         except KeyboardInterrupt:
             tq.close()
             print('Ctrl+C, saving snapshot')
