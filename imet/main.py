@@ -37,7 +37,7 @@ def main():
     arg('--batch-size', type=int, default=64)
     arg('--step', type=int, default=1)
     arg('--workers', type=int, default=2 if ON_KAGGLE else 4)
-    arg('--lr', type=float, default=1e-3)
+    arg('--lr', type=float, default=None)
     arg('--patience', type=int, default=4)
     arg('--clean', action='store_true')
     arg('--n-epochs', type=int, default=100)
@@ -57,6 +57,10 @@ def main():
     arg('--mixup_loss', default=False, type=bool)
     arg('--decay', type=str)
     arg('--scheduler', default='', type=str)
+    arg('--t_max', default=10, type=int)
+    arg('--eta_min', default=0.0001, type=float)
+    arg('--step_size', default=4, type=int)
+    arg('--gamma', default=0.1, type=float)
     args = parser.parse_args()
 
     run_root = Path(args.run_root)
@@ -197,10 +201,8 @@ def predict(model, root: Path, df: pd.DataFrame, out_path: Path,
 def train(args, model: nn.Module, criterion, *, params,
           train_loader, valid_loader, init_optimizer, use_cuda,
           n_epochs=None, patience=2, max_lr_changes=2) -> bool:
-    lr = args.lr
     n_epochs = n_epochs or args.n_epochs
     params = list(params)
-    optimizer = init_optimizer(params, lr)
 
     run_root = Path(args.run_root)
     if not ON_KAGGLE:
@@ -225,11 +227,17 @@ def train(args, model: nn.Module, criterion, *, params,
         step = 0
         best_valid_scores = 0
         best_valid_loss = float('inf')
+        lr = args.lr
+
+    if args.lr is not None:
+        lr = args.lr
+    
+    optimizer = init_optimizer(params, lr)
     
     if args.scheduler == 'cosine':
-        scheduler = CosineAnnealingLR(optimizer, T_max=len(train_loader))
+        scheduler = CosineAnnealingLR(optimizer, T_max=args.t_max, eta_min=args.eta_min)
     else:
-        scheduler = StepLR(optimizer, step_size=2, gamma=0.1)
+        scheduler = StepLR(optimizer, step_size=args.step_size, gamma=args.gamma)
 
     # reset model path after load
     model_path = run_root / 'model.pt'
@@ -281,7 +289,6 @@ def train(args, model: nn.Module, criterion, *, params,
                 if (i + 1) % args.step == 0:
                     optimizer.step()
                     optimizer.zero_grad()
-                    scheduler.step()
                     step += 1
                 tq.update(batch_size)
                 if not ON_KAGGLE:
@@ -302,13 +309,7 @@ def train(args, model: nn.Module, criterion, *, params,
             # valid_scores
             valid_scores = max([v for k, v in valid_metrics.items() if k != 'valid_loss'])
             valid_losses.append(valid_loss)
-            if not ON_KAGGLE:
-                writer.add_scalar('lr', scheduler.get_lr()[0], global_step=epoch)
-                writer.add_scalar('valid_loss', valid_loss, global_step=epoch)
-                writer.add_scalar('valid_score', valid_scores, global_step=epoch)
-                writer.add_scalar('best_valid_score', best_valid_scores, global_step=epoch)
-                writer.add_scalar('best_valid_loss', best_valid_loss, global_step=epoch)
-            
+        
             if valid_loss < best_valid_loss:
                 best_valid_loss = valid_loss
 
@@ -324,15 +325,18 @@ def train(args, model: nn.Module, criterion, *, params,
                 lr_changes +=1
                 if lr_changes > max_lr_changes:
                     break
-                lr /= 5
+                lr /= 2
                 print('lr updated to {lr}'.format(lr=lr))
                 lr_reset_epoch = epoch
+            if not ON_KAGGLE:
+                writer.add_scalar('lr', scheduler.get_lr()[0], global_step=epoch)
+                writer.add_scalar('valid_loss', valid_loss, global_step=epoch)
+                writer.add_scalar('valid_score', valid_scores, global_step=epoch)
+                writer.add_scalar('best_valid_score', best_valid_scores, global_step=epoch)
+                writer.add_scalar('best_valid_loss', best_valid_loss, global_step=epoch)
+            
+            scheduler.step()
 
-            optimizer = init_optimizer(params, lr)
-            if args.scheduler == 'cosine':
-                scheduler = CosineAnnealingLR(optimizer, T_max=len(train_loader))
-            else:
-                scheduler = StepLR(optimizer, step_size=2, gamma=0.1)
         except KeyboardInterrupt:
             tq.close()
             print('Ctrl+C, saving snapshot')
