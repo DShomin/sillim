@@ -239,11 +239,7 @@ def train(args, model: nn.Module, criterion, *, params,
     if args.scheduler == 'cosine':
         scheduler = CosineAnnealingLR(optimizer, T_max=args.t_max, eta_min=args.eta_min)
     else:
-<<<<<<< HEAD
         scheduler = StepLR(optimizer, step_size=args.step_size, gamma=args.gamma)
-=======
-        scheduler = StepLR(optimizer, step_size=2, gamma=0.8)
->>>>>>> 15ead2ed4283de8f086a0d4dc5c8ed6276a4159c
 
     # reset model path after load
     model_path = run_root / 'model.pt'
@@ -295,11 +291,6 @@ def train(args, model: nn.Module, criterion, *, params,
                 if (i + 1) % args.step == 0:
                     optimizer.step()
                     optimizer.zero_grad()
-<<<<<<< HEAD
-=======
-                    if args.scheduler == 'cosine':
-                        scheduler.step()
->>>>>>> 15ead2ed4283de8f086a0d4dc5c8ed6276a4159c
                     step += 1
                 tq.update(batch_size)
                 if not ON_KAGGLE:
@@ -320,19 +311,7 @@ def train(args, model: nn.Module, criterion, *, params,
             # valid_scores
             valid_scores = max([v for k, v in valid_metrics.items() if k != 'valid_loss'])
             valid_losses.append(valid_loss)
-<<<<<<< HEAD
         
-=======
-            if not ON_KAGGLE:
-                #writer.add_scalar('lr', scheduler.get_lr()[0], global_step=epoch)
-                writer.add_scalar('valid_loss', valid_loss, global_step=epoch)
-                writer.add_scalar('valid_score', valid_scores, global_step=epoch)
-                writer.add_scalar('best_valid_score', best_valid_scores, global_step=epoch)
-                writer.add_scalar('best_valid_loss', best_valid_loss, global_step=epoch)
-            if not args.scheduler == 'cosine':
-                scheduler.step()
-
->>>>>>> 15ead2ed4283de8f086a0d4dc5c8ed6276a4159c
             if valid_loss < best_valid_loss:
                 best_valid_loss = valid_loss
             elif (patience and epoch - lr_reset_epoch > patience and
@@ -344,7 +323,6 @@ def train(args, model: nn.Module, criterion, *, params,
                 lr /= 2
                 print('lr updated to {lr}'.format(lr=lr))
                 lr_reset_epoch = epoch
-<<<<<<< HEAD
             if not ON_KAGGLE:
                 writer.add_scalar('lr', scheduler.get_lr()[0], global_step=epoch)
                 writer.add_scalar('valid_loss', valid_loss, global_step=epoch)
@@ -353,22 +331,6 @@ def train(args, model: nn.Module, criterion, *, params,
                 writer.add_scalar('best_valid_loss', best_valid_loss, global_step=epoch)
             
             scheduler.step()
-=======
-                
-                # init optimizer and scheduler
-                optimizer = init_optimizer(params, lr)
-                if args.scheduler == 'cosine':
-                    scheduler = CosineAnnealingLR(optimizer, T_max=len(train_loader))
-                else:
-                    scheduler = StepLR(optimizer, step_size=2, gamma=0.8)
-
-            if valid_scores > best_valid_scores:
-                best_valid_scores = valid_scores
-                shutil.copy(str(model_path), str(best_model_path))
-                text='Save bestmodel at epoch:{epoch}'.format(epoch=epoch)
-                print(text)
-                write_event(log, step, **valid_metrics, message=text)
->>>>>>> 15ead2ed4283de8f086a0d4dc5c8ed6276a4159c
 
         except KeyboardInterrupt:
             tq.close()
