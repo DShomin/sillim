@@ -121,4 +121,5 @@ output/*
 folds.csv
 *.pt
 *.json
+*.sh
 events*

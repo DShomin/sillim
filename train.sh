@@ -1,8 +1,8 @@
-python -m imet.main train seresnext101_320_bce_1 \
---model seresnext101 \
+python -m imet.main train resnet_320_bce_1 \
+--model resnet50 \
 --n-epochs 1000 \
 --batch-size 16 \
---lr 0.0005 \
+--lr 0.001 \
 --size 320 \
 --loss BCE \
 --train_augments "random_crop, horizontal_flip, vertical_flip, random_rotate, color_jitter" \
