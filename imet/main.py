@@ -99,8 +99,10 @@ def main():
     if use_cuda:
         model = model.cuda()
     target_size = (args.size, args.size)
-    train_transform = get_transform(target_size, args.train_augments, args.augment_ratio)
-    test_transform = get_transform(target_size, args.test_augments, args.augment_ratio)
+    train_transform = \
+        get_transform(target_size, args.train_augments, args.augment_ratio)
+    test_transform = \
+        get_transform(target_size, args.test_augments, args.augment_ratio, is_train=False)
 
     if args.mode == 'train':
         if run_root.exists() and args.clean:
@@ -314,17 +316,16 @@ def train(args, model: nn.Module, criterion, *, params,
         
             if valid_loss < best_valid_loss:
                 best_valid_loss = valid_loss
-            elif (patience and epoch - lr_reset_epoch > patience and
-                  min(valid_losses[-patience:]) > best_valid_loss):
-                # "patience" epochs without improvement
-                lr_changes +=1
-                if lr_changes > max_lr_changes:
-                    break
-                lr /= 2
-                print('lr updated to {lr}'.format(lr=lr))
-                lr_reset_epoch = epoch
+                
+            if valid_scores > best_valid_scores:
+                best_valid_scores = valid_scores
+                shutil.copy(str(model_path), str(best_model_path))	
+                text='Save bestmodel at epoch:{epoch}'.format(epoch=epoch)	
+                print(text)	
+                write_event(log, step, **valid_metrics, message=text)
+            
             if not ON_KAGGLE:
-                writer.add_scalar('lr', scheduler.get_lr()[0], global_step=epoch)
+                #writer.add_scalar('lr', scheduler.get_lr()[0], global_step=epoch)
                 writer.add_scalar('valid_loss', valid_loss, global_step=epoch)
                 writer.add_scalar('valid_score', valid_scores, global_step=epoch)
                 writer.add_scalar('best_valid_score', best_valid_scores, global_step=epoch)

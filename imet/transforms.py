@@ -39,7 +39,8 @@ tensor_transform = Compose([
 def get_transform(
         target_size=(288,288),
         transform_list='random_crop, horizontal_flip', # random_crop | keep_aspect
-        augment_ratio=0.5
+        augment_ratio=0.5,
+        is_train=True,
         ):
     transform = list()
     transform_list = transform_list.split(', ')
@@ -47,7 +48,8 @@ def get_transform(
 
     for transform_name in transform_list:
         if transform_name == 'random_crop':
-            transform.append(RandomResizedCrop(target_size))
+            scale = (0.5, 1.0) if is_train else (0.8, 1.0)
+            transform.append(RandomResizedCrop(target_size, scale=(0.8, 1.0)))
         elif transform_name == 'keep_aspect':
             transform.append(KeepAsepctResize(target_size))
         elif transform_name == 'horizontal_flip':
@@ -57,9 +59,11 @@ def get_transform(
         elif transform_name == 'random_rotate':
             augments.append(RandomRotate())
         elif transform_name == 'color_jitter':
+            brightness = 0.1 if is_train else 0.05
+            contrast = 0.1 if is_train else 0.05
             augments.append(ColorJitter(
-                brightness=0.1,
-                contrast=0.1,
+                brightness=brightness,
+                contrast=contrast,
                 saturation=0,
                 hue=0,
             ))
