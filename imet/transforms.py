@@ -48,14 +48,23 @@ def get_transform(
 
     for transform_name in transform_list:
         if transform_name == 'random_crop':
-            scale = (0.5, 1.0) if is_train else (0.8, 1.0)
-            transform.append(RandomResizedCrop(target_size, scale=(0.8, 1.0)))
+            scale = (0.5, 1.0) if is_train else (1.0, 1.0)
+            ratio = (0.75, 1.3) if is_train else (1.0, 1.0)
+            transform.append(
+                RandomResizedCrop(
+                    target_size,
+                    scale=scale,
+                    ratio=ratio,
+                )
+            )
         elif transform_name == 'keep_aspect':
             transform.append(KeepAsepctResize(target_size))
         elif transform_name == 'horizontal_flip':
-            augments.append(RandomHorizontalFlip())
+            p = 0.5 if is_train else 0.25
+            augments.append(RandomHorizontalFlip(p))
         elif transform_name == 'vertical_flip':
-            augments.append(RandomVerticalFlip())
+            p = 0.5 if is_train else 0.25
+            augments.append(RandomVerticalFlip(p))
         elif transform_name == 'random_rotate':
             augments.append(RandomRotate())
         elif transform_name == 'color_jitter':
