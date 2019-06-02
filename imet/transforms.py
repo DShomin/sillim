@@ -48,7 +48,7 @@ def get_transform(
 
     for transform_name in transform_list:
         if transform_name == 'random_crop':
-            scale = (0.5, 1.0) if is_train else (1.0, 1.0)
+            scale = (0.5, 1.2) if is_train else (1.0, 1.0)
             ratio = (0.75, 1.3) if is_train else (1.0, 1.0)
             transform.append(
                 RandomResizedCrop(
