@@ -1,4 +1,3 @@
-# Sillim Pytorch boilerplate
+# Sillim FAT 2019 train code & weight file
 
-## template source
-- https://github.com/moemen95/Pytorch-Project-Template
+## [weight file link](https://drive.google.com/drive/folders/1Gute6RxzoPcZAHIz--2ozOcUCjijXyDx)
